@@ -49,5 +49,11 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   progressBarRow:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:20,paddingTop:10,paddingBottom:4},
   progressTrack:{flex:1,height:8,borderRadius:4,backgroundColor:C.panel2,overflow:'hidden'},
   progressFill:{height:'100%',backgroundColor:C.lime,borderRadius:4},
-  progressLabel:{color:C.muted,fontSize:11,fontWeight:'800'}
+  progressLabel:{color:C.muted,fontSize:11,fontWeight:'800'},
+  restTimer:{position:'absolute',left:20,right:20,bottom:24,backgroundColor:C.panel,borderRadius:20,padding:12,flexDirection:'row',alignItems:'center',gap:14},
+  restTimerRing:{width:64,height:64,alignItems:'center',justifyContent:'center'},
+  restTimerText:{position:'absolute',color:C.text,fontWeight:'900',fontSize:16},
+  restTimerLabel:{flex:1,color:C.muted,fontWeight:'800',fontSize:12,letterSpacing:1},
+  restTimerSkip:{backgroundColor:C.panel2,borderRadius:10,paddingHorizontal:14,paddingVertical:9},
+  restTimerSkipText:{color:C.text,fontWeight:'800',fontSize:12}
 });

@@ -6,8 +6,12 @@ import type { WeightUnit } from '../lib/units';
 import { styles } from '../styles';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 import { ProgressBar } from '../components/workout/ProgressBar';
+import { RestTimer } from '../components/workout/RestTimer';
 import { appendHistoryEntry, getExerciseSummary, getPrefillForSet } from '../lib/workoutHistory';
 import type { ExerciseHistory, LoggedSet } from '../types/history';
+import { useRestTimer } from '../hooks/useRestTimer';
+
+const REST_SECONDS = 90;
 
 export type ActiveSet = { weight: string; reps: string; rpe: string; done: boolean };
 
@@ -29,8 +33,12 @@ export function Workout({ routine, unit, history, finish, cancel }: {
   const completedExercises = useMemo(() => routine.exercises.filter(e => sets[e.id].every(s => s.done)).length, [routine, sets]);
   const [notes, setNotes] = useState('');
   const [seconds, setSeconds] = useState(0);
+  const restTimer = useRestTimer(REST_SECONDS);
   useEffect(() => { const id = setInterval(() => setSeconds(x => x + 1), 1000); return () => clearInterval(id); }, []);
-  const edit = (id: string, i: number, field: keyof ActiveSet, value: string | boolean) => setSets(s => ({ ...s, [id]: s[id].map((x, n) => n === i ? { ...x, [field]: value } : x) }));
+  const edit = (id: string, i: number, field: keyof ActiveSet, value: string | boolean) => {
+    setSets(s => ({ ...s, [id]: s[id].map((x, n) => n === i ? { ...x, [field]: value } : x) }));
+    if (field === 'done' && value === true) restTimer.start();
+  };
   const complete = () => {
     let volume = 0; const records: Record<string, number> = {};
     let nextHistory = history;
@@ -69,5 +77,6 @@ export function Workout({ routine, unit, history, finish, cancel }: {
         placeholderTextColor={C.muted} style={[styles.input, styles.notes]} multiline />
       <Pressable style={styles.primary} onPress={complete}><Text style={styles.primaryText}>FINISH WORKOUT</Text></Pressable>
     </ScrollView>
+    <RestTimer visible={restTimer.state.visible} remainingSec={restTimer.state.remainingSec} totalSec={restTimer.state.totalSec} onSkip={restTimer.skip} />
   </SafeAreaView>;
 }
