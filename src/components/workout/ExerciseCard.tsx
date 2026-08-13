@@ -1,4 +1,5 @@
-import { Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Text, View } from 'react-native';
 import type { Exercise } from '../../data';
 import type { WeightUnit } from '../../lib/units';
 import { styles } from '../../styles';
@@ -14,7 +15,10 @@ export function ExerciseCard({ exercise, unit, sets, summary, onEditSet }: {
   summary: ExerciseSummary;
   onEditSet: (setIndex: number, field: keyof ActiveSet, value: string | boolean) => void;
 }) {
-  return <View style={styles.exercise}>
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => { Animated.timing(fade, { toValue: 1, duration: 280, useNativeDriver: true }).start(); }, [fade]);
+
+  return <Animated.View style={[styles.exercise, { opacity: fade, transform: [{ translateY: fade.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
     <Text style={styles.exerciseName}>{exercise.name}</Text>
     <Text style={styles.exerciseSub}>{exercise.muscle} · {exercise.sets} × {exercise.reps}</Text>
     <PreviousSummary summary={summary} unit={unit} />
@@ -28,5 +32,5 @@ export function ExerciseCard({ exercise, unit, sets, summary, onEditSet }: {
       <View style={styles.setHeaderCheck} />
     </View>
     {sets.map((set, i) => <SetRow key={i} index={i} set={set} unit={unit} isActive={i === sets.findIndex(s => !s.done)} onEdit={(field, value) => onEditSet(i, field, value)} />)}
-  </View>;
+  </Animated.View>;
 }
