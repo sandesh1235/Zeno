@@ -38,5 +38,7 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   sheetSelectionWindow:{position:'absolute',left:18,right:18,height:44,top:88,borderRadius:10,backgroundColor:C.panel2},
   sheetRow:{height:44,alignItems:'center',justifyContent:'center'},
   sheetRowText:{color:C.muted,fontSize:16,fontWeight:'700'},
-  sheetRowTextActive:{color:C.text,fontSize:20,fontWeight:'900'}
+  sheetRowTextActive:{color:C.text,fontSize:20,fontWeight:'900'},
+  previousSummary:{backgroundColor:C.panel2,borderRadius:10,paddingVertical:8,paddingHorizontal:10,marginTop:2},
+  previousSummaryText:{color:C.muted,fontSize:12,fontWeight:'700'}
 });
