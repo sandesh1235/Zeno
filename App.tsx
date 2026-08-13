@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
@@ -39,7 +39,7 @@ export default function App() {
 
 function Onboarding({ done }: { done: (name: string, unit: 'kg' | 'lb') => void }) { const [name, setName] = useState(''); const [unit, setUnit] = useState<'kg' | 'lb'>('kg'); return <SafeAreaView style={styles.screen}><View style={styles.onboard}><Text style={styles.brand}>ZENO<Text style={styles.brandAccent}>FIT</Text></Text><Text style={styles.hero}>Train with intention.</Text><Text style={styles.sub}>Your routines, lifts, and progress—made simple.</Text><Text style={styles.label}>WHAT SHOULD WE CALL YOU?</Text><TextInput value={name} onChangeText={setName} placeholder="Your name" placeholderTextColor={C.muted} style={styles.input} /><Text style={styles.label}>PREFERRED UNIT</Text><View style={styles.row}>{(['kg', 'lb'] as const).map(u => <Pressable key={u} onPress={() => setUnit(u)} style={[styles.choice, unit === u && styles.choiceOn]}><Text style={styles.choiceText}>{u.toUpperCase()}</Text></Pressable>)}</View><Pressable style={styles.primary} onPress={() => done(name.trim() || 'Athlete', unit)}><Text style={styles.primaryText}>START TRAINING →</Text></Pressable><Text style={styles.fine}>You can update units and reminders anytime.</Text></View></SafeAreaView> }
 
-function Home({ state, start, browse }: { state: SavedState; start: (r: Routine) => void; browse: () => void }) { const suggested = state.routines[0] || templates[0]; return <ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>READY WHEN YOU ARE</Text><Text style={styles.title}>Hey, {state.profile.name}.</Text><View style={styles.feature}><Text style={styles.featureLabel}>TODAY'S SESSION</Text><Text style={styles.featureTitle}>{suggested.name}</Text><Text style={styles.sub}>{suggested.exercises.length} exercises · {suggested.duration}</Text><Pressable style={styles.primary} onPress={() => start(suggested)}><Text style={styles.primaryText}>START WORKOUT</Text></Pressable></View><Text style={styles.section}>Your week</Text><View style={styles.stats}><Stat value={String(state.completed)} label="Workouts" /><Stat value={`${Math.round(state.volume / 1000 * 10) / 10}k`} label="Volume (kg)" /><Stat value={String(Object.keys(state.records).length)} label="Records" /></View><Pressable style={styles.secondary} onPress={browse}><Text style={styles.secondaryText}>Browse workout plans</Text><Text style={styles.secondaryText}>→</Text></Pressable></ScrollView> }
+function Home({ state, start, browse }: { state: SavedState; start: (r: Routine) => void; browse: () => void }) { const suggested = state.routines[0] || templates[0]; return <ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>READY WHEN YOU ARE</Text><Text style={styles.title}>Hey, {state.profile.name}.</Text><View style={styles.feature}><Image source={require('./assets/images/home-hero.png')} style={styles.featureImage} /><View style={styles.featureOverlay} /><View style={styles.featureContent}><Text style={styles.featureLabel}>TODAY'S SESSION</Text><Text style={styles.featureTitle}>{suggested.name}</Text><Text style={styles.sub}>{suggested.exercises.length} exercises · {suggested.duration}</Text><Pressable style={styles.primary} onPress={() => start(suggested)}><Text style={styles.primaryText}>START WORKOUT</Text></Pressable></View></View><Text style={styles.section}>Your week</Text><View style={styles.stats}><Stat value={String(state.completed)} label="Workouts" /><Stat value={`${Math.round(state.volume / 1000 * 10) / 10}k`} label="Volume (kg)" /><Stat value={String(Object.keys(state.records).length)} label="Records" /></View><Pressable style={styles.secondary} onPress={browse}><Text style={styles.secondaryText}>Browse workout plans</Text><Text style={styles.secondaryText}>→</Text></Pressable></ScrollView> }
 function Stat({ value, label }: { value: string; label: string }) { return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View> }
 
 function Plans({ routines, start, add, updateRoutine, deleteRoutine }: { routines: Routine[]; start: (r: Routine) => void; add: (r: Routine) => void; updateRoutine: (r: Routine) => void; deleteRoutine: (id: string) => void }) {
@@ -92,7 +92,7 @@ function PlanEditor({ visible, initial, close, save }: { visible: boolean; initi
 
   const addEx = () => setExercises(ex => [...ex, newExercise()]);
   const updateEx = (id: string, patch: Partial<Exercise>) => setExercises(ex => ex.map(e => e.id === id ? { ...e, ...patch } : e));
-  const removeEx = (id: string) => setExercises(ex => ex.filter(e => e.id !== id));
+  const removeEx = (index: number) => setExercises(ex => ex.filter((_, currentIndex) => currentIndex !== index));
   const moveEx = (id: string, dir: -1 | 1) => setExercises(ex => {
     const i = ex.findIndex(e => e.id === id); const j = i + dir;
     if (j < 0 || j >= ex.length) return ex;
@@ -121,7 +121,7 @@ function PlanEditor({ visible, initial, close, save }: { visible: boolean; initi
 
         {exercises.length === 0 && <View style={styles.empty}><Text style={styles.emptyIcon}>＋</Text><Text style={styles.routineName}>No exercises yet</Text><Text style={styles.sub}>Tap the + button to add your first exercise.</Text></View>}
 
-        {exercises.map((e, i) => <ExerciseRow key={e.id} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => removeEx(e.id)} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}
+        {exercises.map((e, i) => <ExerciseRow key={`-`} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => Alert.alert('Remove exercise?', `Remove  from this plan?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeEx(i) }])} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}
       </ScrollView>
     </SafeAreaView>
   </Modal>;
@@ -131,7 +131,7 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
   return <View style={styles.exerciseEdit}>
     <View style={styles.exerciseEditTop}>
       <TextInput value={exercise.name} onChangeText={name => onChange({ name })} placeholder="Exercise name" placeholderTextColor={C.muted} style={[styles.input, styles.flex1]} />
-      <Pressable onPress={onRemove} style={styles.removeBtn}><Text style={styles.removeBtnText}>✕</Text></Pressable>
+      <Pressable onPress={onRemove} style={styles.removeBtn} accessibilityRole="button" accessibilityLabel={`Remove `} hitSlop={10}><Text style={styles.removeBtnText}>REMOVE</Text></Pressable>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
       {MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}
