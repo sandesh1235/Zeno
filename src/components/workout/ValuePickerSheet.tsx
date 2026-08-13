@@ -73,14 +73,14 @@ export function ValuePickerSheet({ visible, kind, unit, value, onSelect, onClose
   return <Modal transparent visible animationType="none" onRequestClose={onClose}>
     <View style={styles.sheetRoot}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.sheetBackdrop, { opacity: anim }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, styles.sheetBackdrop, { opacity: anim, pointerEvents: 'none' }]} />
       <Animated.View style={[styles.sheet, { transform: [{ translateY: anim.interpolate({ inputRange: [0, 1], outputRange: [WHEEL_HEIGHT + 80, 0] }) }] }]}>
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>{titleFor(kind, unit)}</Text>
           <Pressable onPress={() => commit(selectedIndex)}><Text style={styles.sheetDone}>DONE</Text></Pressable>
         </View>
         <View style={styles.sheetWheel}>
-          <View pointerEvents="none" style={styles.sheetSelectionWindow} />
+          <View style={[styles.sheetSelectionWindow, { pointerEvents: 'none' }]} />
           <FlatList
             ref={listRef}
             data={options}
