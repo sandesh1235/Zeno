@@ -1,0 +1,7 @@
+{
+  "expo": {
+    "name": "ZenoFit", "slug": "zenofit", "version": "1.0.0", "orientation": "portrait",
+    "userInterfaceStyle": "dark", "plugins": ["expo-notifications"],
+    "ios": { "supportsTablet": true }, "android": { "adaptiveIcon": { "backgroundColor": "#101514" } }
+  }
+}
