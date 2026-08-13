@@ -5,6 +5,7 @@ import { C } from '../theme';
 import type { WeightUnit } from '../lib/units';
 import { styles } from '../styles';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
+import { ProgressBar } from '../components/workout/ProgressBar';
 import { appendHistoryEntry, getExerciseSummary, getPrefillForSet } from '../lib/workoutHistory';
 import type { ExerciseHistory, LoggedSet } from '../types/history';
 
@@ -25,6 +26,7 @@ export function Workout({ routine, unit, history, finish, cancel }: {
 }) {
   const [sets, setSets] = useState<Record<string, ActiveSet[]>>(() => Object.fromEntries(routine.exercises.map(e => [e.id, Array.from({ length: e.sets }, (_, i) => seedSet(history, e.name, i))])));
   const summaries = useMemo(() => Object.fromEntries(routine.exercises.map(e => [e.id, getExerciseSummary(history, e.name)])), [routine, history]);
+  const completedExercises = useMemo(() => routine.exercises.filter(e => sets[e.id].every(s => s.done)).length, [routine, sets]);
   const [notes, setNotes] = useState('');
   const [seconds, setSeconds] = useState(0);
   useEffect(() => { const id = setInterval(() => setSeconds(x => x + 1), 1000); return () => clearInterval(id); }, []);
@@ -59,6 +61,7 @@ export function Workout({ routine, unit, history, finish, cancel }: {
       </View>
       <Text style={styles.live}>LIVE</Text>
     </View>
+    <ProgressBar completed={completedExercises} total={routine.exercises.length} />
     <ScrollView contentContainerStyle={styles.content}>
       {routine.exercises.map(e => <ExerciseCard key={e.id} exercise={e} unit={unit} sets={sets[e.id]} summary={summaries[e.id]} onEditSet={(i, field, value) => edit(e.id, i, field, value)} />)}
       <Text style={styles.label}>SESSION NOTES</Text>

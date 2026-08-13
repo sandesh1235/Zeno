@@ -21,6 +21,6 @@ export function ExerciseCard({ exercise, unit, sets, summary, onEditSet }: {
     <View style={styles.setHeader}>
       <Text>SET</Text><Text>{unit.toUpperCase()}</Text><Text>REPS</Text><Text>RPE</Text><Text>DONE</Text>
     </View>
-    {sets.map((set, i) => <SetRow key={i} index={i} set={set} unit={unit} onEdit={(field, value) => onEditSet(i, field, value)} />)}
+    {sets.map((set, i) => <SetRow key={i} index={i} set={set} unit={unit} isActive={i === sets.findIndex(s => !s.done)} onEdit={(field, value) => onEditSet(i, field, value)} />)}
   </View>;
 }

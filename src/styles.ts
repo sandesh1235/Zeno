@@ -40,5 +40,14 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   sheetRowText:{color:C.muted,fontSize:16,fontWeight:'700'},
   sheetRowTextActive:{color:C.text,fontSize:20,fontWeight:'900'},
   previousSummary:{backgroundColor:C.panel2,borderRadius:10,paddingVertical:8,paddingHorizontal:10,marginTop:2},
-  previousSummaryText:{color:C.muted,fontSize:12,fontWeight:'700'}
+  previousSummaryText:{color:C.muted,fontSize:12,fontWeight:'700'},
+  setRowActive:{backgroundColor:'rgba(197,242,94,0.08)',borderRadius:10,paddingVertical:3,paddingHorizontal:3,marginHorizontal:-3},
+  setRowDone:{paddingVertical:6},
+  setDoneSummary:{flex:1,color:C.muted,fontSize:13,fontWeight:'700'},
+  checkSuccess:{backgroundColor:C.success},
+  checkSuccessText:{color:C.bg,fontWeight:'900'},
+  progressBarRow:{flexDirection:'row',alignItems:'center',gap:10,paddingHorizontal:20,paddingTop:10,paddingBottom:4},
+  progressTrack:{flex:1,height:8,borderRadius:4,backgroundColor:C.panel2,overflow:'hidden'},
+  progressFill:{height:'100%',backgroundColor:C.lime,borderRadius:4},
+  progressLabel:{color:C.muted,fontSize:11,fontWeight:'800'}
 });
