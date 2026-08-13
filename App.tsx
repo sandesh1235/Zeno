@@ -4,13 +4,11 @@ import * as Notifications from 'expo-notifications';
 import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
 import { supabase } from './src/supabase';
+import { C } from './src/theme';
+import { showWeight, toKg } from './src/lib/units';
 
 type Tab = 'Home' | 'Plans' | 'Progress' | 'Profile';
 type ActiveSet = { weight: string; reps: string; rpe: string; done: boolean };
-const C = { bg: '#101514', panel: '#19211f', panel2: '#222d29', text: '#f2f7f4', muted: '#9aa9a2', lime: '#c5f25e', danger: '#ff7c74' };
-const kgToLb = (n: number) => n * 2.20462;
-const toKg = (n: number, unit: 'kg' | 'lb') => unit === 'kg' ? n : n / 2.20462;
-const showWeight = (kg: number, unit: 'kg' | 'lb') => `${(unit === 'kg' ? kg : kgToLb(kg)).toFixed(1).replace('.0', '')} ${unit}`;
 
 export default function App() {
   const [state, setState] = useState<SavedState>(defaultState);
