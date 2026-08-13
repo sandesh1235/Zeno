@@ -15,11 +15,17 @@ export function ExerciseCard({ exercise, unit, sets, summary, onEditSet }: {
   onEditSet: (setIndex: number, field: keyof ActiveSet, value: string | boolean) => void;
 }) {
   return <View style={styles.exercise}>
-    <Text style={styles.routineName}>{exercise.name}</Text>
-    <Text style={styles.sub}>{exercise.muscle} · {exercise.sets} × {exercise.reps}</Text>
+    <Text style={styles.exerciseName}>{exercise.name}</Text>
+    <Text style={styles.exerciseSub}>{exercise.muscle} · {exercise.sets} × {exercise.reps}</Text>
     <PreviousSummary summary={summary} unit={unit} />
     <View style={styles.setHeader}>
-      <Text>SET</Text><Text>{unit.toUpperCase()}</Text><Text>REPS</Text><Text>RPE</Text><Text>DONE</Text>
+      <Text style={styles.setHeaderSet}>SET</Text>
+      <View style={styles.setStepperGroup}>
+        <Text style={styles.setHeaderValue}>{unit.toUpperCase()}</Text>
+        <Text style={styles.setHeaderValue}>REPS</Text>
+        <Text style={styles.setHeaderValue}>RPE</Text>
+      </View>
+      <View style={styles.setHeaderCheck} />
     </View>
     {sets.map((set, i) => <SetRow key={i} index={i} set={set} unit={unit} isActive={i === sets.findIndex(s => !s.done)} onEdit={(field, value) => onEditSet(i, field, value)} />)}
   </View>;
