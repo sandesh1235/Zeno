@@ -4,6 +4,7 @@ import type { Routine } from '../data';
 import { C } from '../theme';
 import { toKg, type WeightUnit } from '../lib/units';
 import { styles } from '../styles';
+import { ExerciseCard } from '../components/workout/ExerciseCard';
 
 export type ActiveSet = { weight: string; reps: string; rpe: string; done: boolean };
 
@@ -37,24 +38,7 @@ export function Workout({ routine, unit, finish, cancel }: { routine: Routine; u
       <Text style={styles.live}>LIVE</Text>
     </View>
     <ScrollView contentContainerStyle={styles.content}>
-      {routine.exercises.map(e => <View key={e.id} style={styles.exercise}>
-        <Text style={styles.routineName}>{e.name}</Text>
-        <Text style={styles.sub}>{e.muscle} · {e.sets} × {e.reps}</Text>
-        <View style={styles.setHeader}>
-          <Text>SET</Text><Text>{unit.toUpperCase()}</Text><Text>REPS</Text><Text>RPE</Text><Text>DONE</Text>
-        </View>
-        {sets[e.id].map((s, i) => <View style={styles.setRow} key={i}>
-          <Text style={styles.setNum}>{i + 1}</Text>
-          {(['weight', 'reps', 'rpe'] as const).map(f =>
-            <TextInput key={f} value={s[f]} onChangeText={v => edit(e.id, i, f, v)}
-              keyboardType="decimal-pad" placeholder="–" placeholderTextColor={C.muted}
-              style={styles.setInput} />
-          )}
-          <Pressable onPress={() => edit(e.id, i, 'done', !s.done)} style={[styles.check, s.done && styles.checkOn]}>
-            <Text>{s.done ? '✓' : ''}</Text>
-          </Pressable>
-        </View>)}
-      </View>)}
+      {routine.exercises.map(e => <ExerciseCard key={e.id} exercise={e} unit={unit} sets={sets[e.id]} onEditSet={(i, field, value) => edit(e.id, i, field, value)} />)}
       <Text style={styles.label}>SESSION NOTES</Text>
       <TextInput value={notes} onChangeText={setNotes} placeholder="How did it feel?"
         placeholderTextColor={C.muted} style={[styles.input, styles.notes]} multiline />
