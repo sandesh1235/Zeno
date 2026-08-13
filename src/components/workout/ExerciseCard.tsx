@@ -17,6 +17,6 @@ export function ExerciseCard({ exercise, unit, sets, onEditSet }: {
     <View style={styles.setHeader}>
       <Text>SET</Text><Text>{unit.toUpperCase()}</Text><Text>REPS</Text><Text>RPE</Text><Text>DONE</Text>
     </View>
-    {sets.map((set, i) => <SetRow key={i} index={i} set={set} onEdit={(field, value) => onEditSet(i, field, value)} />)}
+    {sets.map((set, i) => <SetRow key={i} index={i} set={set} unit={unit} onEdit={(field, value) => onEditSet(i, field, value)} />)}
   </View>;
 }

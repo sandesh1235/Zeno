@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, SafeAreaView, ScrollView, Text, TextInput, View } from 'react-native';
 import type { Routine } from '../data';
 import { C } from '../theme';
-import { toKg, type WeightUnit } from '../lib/units';
+import type { WeightUnit } from '../lib/units';
 import { styles } from '../styles';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
 
@@ -18,7 +18,7 @@ export function Workout({ routine, unit, finish, cancel }: { routine: Routine; u
     let volume = 0; const records: Record<string, number> = {};
     routine.exercises.forEach(e => sets[e.id].forEach(s => {
       if (s.done) {
-        const kg = toKg(Number(s.weight) || 0, unit);
+        const kg = Number(s.weight) || 0;
         volume += kg * (Number(s.reps) || 0);
         records[e.name] = Math.max(records[e.name] || 0, kg);
       }
