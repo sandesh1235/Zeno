@@ -5,25 +5,46 @@ import { C } from '../theme';
 import type { WeightUnit } from '../lib/units';
 import { styles } from '../styles';
 import { ExerciseCard } from '../components/workout/ExerciseCard';
+import { appendHistoryEntry, getPrefillForSet } from '../lib/workoutHistory';
+import type { ExerciseHistory, LoggedSet } from '../types/history';
 
 export type ActiveSet = { weight: string; reps: string; rpe: string; done: boolean };
 
-export function Workout({ routine, unit, finish, cancel }: { routine: Routine; unit: WeightUnit; finish: (volume: number, records: Record<string, number>) => void; cancel: () => void }) {
-  const [sets, setSets] = useState<Record<string, ActiveSet[]>>(() => Object.fromEntries(routine.exercises.map(e => [e.id, Array.from({ length: e.sets }, () => ({ weight: '', reps: '', rpe: '', done: false }))])));
+const seedSet = (history: ExerciseHistory, exerciseName: string, setIndex: number): ActiveSet => {
+  const prefill = getPrefillForSet(history, exerciseName, setIndex);
+  if (!prefill) return { weight: '', reps: '', rpe: '', done: false };
+  return { weight: String(prefill.weight), reps: String(prefill.reps), rpe: prefill.rpe === null ? '' : String(prefill.rpe), done: false };
+};
+
+export function Workout({ routine, unit, history, finish, cancel }: {
+  routine: Routine;
+  unit: WeightUnit;
+  history: ExerciseHistory;
+  finish: (volume: number, records: Record<string, number>, history: ExerciseHistory) => void;
+  cancel: () => void;
+}) {
+  const [sets, setSets] = useState<Record<string, ActiveSet[]>>(() => Object.fromEntries(routine.exercises.map(e => [e.id, Array.from({ length: e.sets }, (_, i) => seedSet(history, e.name, i))])));
   const [notes, setNotes] = useState('');
   const [seconds, setSeconds] = useState(0);
   useEffect(() => { const id = setInterval(() => setSeconds(x => x + 1), 1000); return () => clearInterval(id); }, []);
   const edit = (id: string, i: number, field: keyof ActiveSet, value: string | boolean) => setSets(s => ({ ...s, [id]: s[id].map((x, n) => n === i ? { ...x, [field]: value } : x) }));
   const complete = () => {
     let volume = 0; const records: Record<string, number> = {};
-    routine.exercises.forEach(e => sets[e.id].forEach(s => {
-      if (s.done) {
-        const kg = Number(s.weight) || 0;
-        volume += kg * (Number(s.reps) || 0);
-        records[e.name] = Math.max(records[e.name] || 0, kg);
-      }
-    }));
-    finish(volume, records);
+    let nextHistory = history;
+    routine.exercises.forEach(e => {
+      const doneSets: LoggedSet[] = [];
+      sets[e.id].forEach(s => {
+        if (s.done) {
+          const kg = Number(s.weight) || 0;
+          const reps = Number(s.reps) || 0;
+          volume += kg * reps;
+          records[e.name] = Math.max(records[e.name] || 0, kg);
+          doneSets.push({ weight: kg, reps, rpe: s.rpe === '' ? null : Number(s.rpe) });
+        }
+      });
+      if (doneSets.length > 0) nextHistory = appendHistoryEntry(nextHistory, e.name, { date: new Date().toISOString(), routineId: routine.id, sets: doneSets });
+    });
+    finish(volume, records, nextHistory);
   };
 
   return <SafeAreaView style={styles.screen}>

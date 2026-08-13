@@ -25,7 +25,7 @@ export default function App() {
   const deleteRoutine = (id: string) => update({ routines: state.routines.filter(x => x.id !== id) });
   if (!ready) return <SafeAreaView style={styles.screen}><Text style={styles.brand}>ZENO<Text style={styles.brandAccent}>FIT</Text></Text></SafeAreaView>;
   if (!state.profile.onboardingDone) return <Onboarding done={(name, unit) => update({ profile: { ...state.profile, name, unit, onboardingDone: true } })} />;
-  if (active) return <Workout routine={active} unit={state.profile.unit} finish={(volume, records) => { update({ completed: state.completed + 1, volume: state.volume + volume, records: { ...state.records, ...records } }); setActive(null); setTab('Progress'); }} cancel={() => setActive(null)} />;
+  if (active) return <Workout routine={active} unit={state.profile.unit} history={state.history} finish={(volume, records, history) => { update({ completed: state.completed + 1, volume: state.volume + volume, records: { ...state.records, ...records }, history }); setActive(null); setTab('Progress'); }} cancel={() => setActive(null)} />;
   return <SafeAreaView style={styles.screen}><StatusBar barStyle="light-content" />
     <View style={styles.header}><Text style={styles.brand}>ZENO<Text style={styles.brandAccent}>FIT</Text></Text><Pressable onPress={() => setTab('Profile')}><Text style={styles.avatar}>{state.profile.name.slice(0, 1).toUpperCase() || 'Z'}</Text></Pressable></View>
     {tab === 'Home' && <Home state={state} start={startRoutine} browse={() => setTab('Plans')} />}
