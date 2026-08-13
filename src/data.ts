@@ -1,6 +1,12 @@
 export type Exercise = { id: string; name: string; muscle: string; sets: number; reps: string };
 export type Routine = { id: string; name: string; focus: string; duration: string; exercises: Exercise[]; template?: boolean };
 
+export const MUSCLE_GROUPS = ['Legs', 'Chest', 'Back', 'Shoulders', 'Arms', 'Core', 'Full Body', 'Cardio'] as const;
+
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+export const newExercise = (): Exercise => ({ id: `ex-${uid()}`, name: '', muscle: MUSCLE_GROUPS[0], sets: 3, reps: '8–12' });
+export const newRoutine = (): Routine => ({ id: `custom-${uid()}`, name: '', focus: 'Custom plan', duration: '45 min', exercises: [], template: false });
+
 export const templates: Routine[] = [
   { id: 'full-body', name: 'Full Body Foundation', focus: 'Beginner · General fitness', duration: '45 min', template: true, exercises: [
     { id: 'squat', name: 'Goblet Squat', muscle: 'Legs', sets: 3, reps: '8–12' }, { id: 'press', name: 'Dumbbell Bench Press', muscle: 'Chest', sets: 3, reps: '8–12' }, { id: 'row', name: 'Seated Cable Row', muscle: 'Back', sets: 3, reps: '10–12' }
