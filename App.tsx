@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, LayoutAnimation, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Image, LayoutAnimation, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
 import { supabase } from './src/supabase';
@@ -12,7 +13,7 @@ import { styles } from './src/styles';
 import { Workout } from './src/screens/WorkoutScreen';
 import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib/schedule';
 import type { WeeklySchedule } from './src/types/schedule';
-import { parseScheduleCsv } from './src/lib/csvImport';
+import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
 import './src/lib/layoutAnimation';
 
 type Tab = 'Home' | 'Plans' | 'Progress' | 'Profile';
@@ -123,10 +124,35 @@ function WeeklySchedule({ routines, schedule, assignDay, importSchedule }: { rou
     }
   };
 
+  const downloadSampleCsv = async () => {
+    try {
+      if (Platform.OS === 'web') {
+        const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = 'schedule-sample.csv';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      }
+      const file = new File(Paths.cache, 'schedule-sample.csv');
+      if (file.exists) file.delete();
+      file.create();
+      file.write(SAMPLE_CSV);
+      if (!(await Sharing.isAvailableAsync())) { Alert.alert('Sharing unavailable', 'Your device does not support sharing files.'); return; }
+      await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Save sample schedule CSV' });
+    } catch (err) {
+      Alert.alert('Could not create sample file', err instanceof Error ? err.message : 'Please try again.');
+    }
+  };
+
   return <>
     <View style={styles.titleRow}>
       <Text style={styles.section}>WEEKLY SCHEDULE</Text>
-      <Pressable onPress={importFromCsv}><Text style={styles.link}>Import CSV</Text></Pressable>
+      <View style={styles.row}>
+        <Pressable onPress={downloadSampleCsv}><Text style={styles.link}>Sample CSV</Text></Pressable>
+        <Pressable onPress={importFromCsv}><Text style={styles.link}>Import CSV</Text></Pressable>
+      </View>
     </View>
     <View style={styles.scheduleRow}>
       {WEEKDAYS.map(day => {

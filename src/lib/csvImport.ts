@@ -1,6 +1,18 @@
 import { MUSCLE_GROUPS, type Exercise, type Routine } from '../data';
 import { WEEKDAYS, type Weekday, type WeeklySchedule } from '../types/schedule';
 
+export const SAMPLE_CSV = `Day,PlanName,Focus,Duration,ExerciseName,Muscle,Sets,Reps
+Monday,Push Day,Strength,50 min,Bench Press,Chest,4,6-10
+Monday,Push Day,Strength,50 min,Overhead Press,Shoulders,3,8-10
+Monday,Push Day,Strength,50 min,Triceps Pushdown,Arms,3,10-15
+Wednesday,Pull Day,Strength,50 min,Barbell Row,Back,4,6-10
+Wednesday,Pull Day,Strength,50 min,Lat Pulldown,Back,3,10-12
+Wednesday,Pull Day,Strength,50 min,Hammer Curl,Arms,3,10-12
+Friday,Leg Day,Strength,55 min,Barbell Squat,Legs,4,6-10
+Friday,Leg Day,Strength,55 min,Romanian Deadlift,Legs,3,8-10
+Friday,Leg Day,Strength,55 min,Calf Raise,Legs,3,12-15
+`;
+
 const REQUIRED_COLUMNS = ['Day', 'PlanName', 'ExerciseName'] as const;
 
 const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
