@@ -61,5 +61,7 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   scheduleDayToday:{backgroundColor:C.panel2,borderWidth:1,borderColor:C.lime},
   scheduleDayLabel:{color:C.lime,fontSize:10,fontWeight:'800',letterSpacing:0.5},
   scheduleDayRoutine:{color:C.text,fontSize:10,fontWeight:'700',textAlign:'center'},
-  scheduleDayRest:{color:C.muted,fontSize:10,fontWeight:'700'}
+  scheduleDayRest:{color:C.muted,fontSize:10,fontWeight:'700'},
+  scheduleDayExpanded:{borderWidth:1,borderColor:C.lime},
+  scheduleOptions:{backgroundColor:C.panel,borderRadius:16,padding:14,gap:6,marginTop:6}
 });

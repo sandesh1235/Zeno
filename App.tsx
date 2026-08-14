@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Image, LayoutAnimation, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import * as DocumentPicker from 'expo-document-picker';
+import { File } from 'expo-file-system';
 import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
 import { supabase } from './src/supabase';
@@ -10,6 +12,8 @@ import { styles } from './src/styles';
 import { Workout } from './src/screens/WorkoutScreen';
 import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib/schedule';
 import type { WeeklySchedule } from './src/types/schedule';
+import { parseScheduleCsv } from './src/lib/csvImport';
+import './src/lib/layoutAnimation';
 
 type Tab = 'Home' | 'Plans' | 'Progress' | 'Profile';
 
@@ -26,13 +30,14 @@ export default function App() {
   const updateRoutine = (r: Routine) => update({ routines: state.routines.map(x => x.id === r.id ? r : x) });
   const deleteRoutine = (id: string) => update({ routines: state.routines.filter(x => x.id !== id) });
   const assignDay = (day: Weekday, routineId: string | null) => update({ schedule: { ...state.schedule, [day]: routineId ?? undefined } });
+  const importSchedule = (newRoutines: Routine[], scheduleAssignments: WeeklySchedule) => update({ routines: [...state.routines, ...newRoutines], schedule: { ...state.schedule, ...scheduleAssignments } });
   if (!ready) return <SafeAreaView style={styles.screen}><Text style={styles.brand}>ZENO<Text style={styles.brandAccent}>FIT</Text></Text></SafeAreaView>;
   if (!state.profile.onboardingDone) return <Onboarding done={(name, unit) => update({ profile: { ...state.profile, name, unit, onboardingDone: true } })} />;
   if (active) return <Workout routine={active} unit={state.profile.unit} history={state.history} finish={(volume, records, history) => { update({ completed: state.completed + 1, volume: state.volume + volume, records: { ...state.records, ...records }, history }); setActive(null); setTab('Progress'); }} cancel={() => setActive(null)} />;
   return <SafeAreaView style={styles.screen}><StatusBar barStyle="light-content" />
     <View style={styles.header}><Text style={styles.brand}>ZENO<Text style={styles.brandAccent}>FIT</Text></Text><Pressable onPress={() => setTab('Profile')}><Text style={styles.avatar}>{state.profile.name.slice(0, 1).toUpperCase() || 'Z'}</Text></Pressable></View>
     {tab === 'Home' && <Home state={state} start={startRoutine} browse={() => setTab('Plans')} />}
-    {tab === 'Plans' && <Plans routines={state.routines} schedule={state.schedule} assignDay={assignDay} start={startRoutine} add={addRoutine} updateRoutine={updateRoutine} deleteRoutine={deleteRoutine} />}
+    {tab === 'Plans' && <Plans routines={state.routines} schedule={state.schedule} assignDay={assignDay} importSchedule={importSchedule} start={startRoutine} add={addRoutine} updateRoutine={updateRoutine} deleteRoutine={deleteRoutine} />}
     {tab === 'Progress' && <Progress state={state} />}
     {tab === 'Profile' && <Profile state={state} update={update} openAuth={() => setAuthOpen(true)} />}
     <View style={styles.tabs}>{(['Home', 'Plans', 'Progress', 'Profile'] as Tab[]).map(x => <Pressable key={x} style={styles.tab} onPress={() => setTab(x)}><Text style={[styles.tabIcon, tab === x && styles.tabActive]}>{x === 'Home' ? '⌂' : x === 'Plans' ? '▤' : x === 'Progress' ? '↗' : '◉'}</Text><Text style={[styles.tabLabel, tab === x && styles.tabActive]}>{x}</Text></Pressable>)}</View>
@@ -45,32 +50,20 @@ function Onboarding({ done }: { done: (name: string, unit: 'kg' | 'lb') => void 
 function Home({ state, start, browse }: { state: SavedState; start: (r: Routine) => void; browse: () => void }) { const today = todayWeekday(); const scheduled = findRoutineById(state.routines, templates, state.schedule[today]); const suggested = scheduled || state.routines[0] || templates[0]; return <ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>READY WHEN YOU ARE</Text><Text style={styles.title}>Hey, {state.profile.name}.</Text><View style={styles.feature}><Image source={require('./assets/images/home-hero.png')} style={styles.featureImage} /><View style={styles.featureOverlay} /><View style={styles.featureContent}><Text style={styles.featureLabel}>{scheduled ? `${today.toUpperCase()}’S SESSION` : "TODAY'S SESSION"}</Text><Text style={styles.featureTitle}>{suggested.name}</Text><Text style={styles.sub}>{suggested.exercises.length} exercises · {suggested.duration}</Text><Pressable style={styles.primary} onPress={() => start(suggested)}><Text style={styles.primaryText}>START WORKOUT</Text></Pressable></View></View><Text style={styles.section}>Your week</Text><View style={styles.stats}><Stat value={String(state.completed)} label="Workouts" /><Stat value={`${Math.round(state.volume / 1000 * 10) / 10}k`} label="Volume (kg)" /><Stat value={String(Object.keys(state.records).length)} label="Records" /></View><Pressable style={styles.secondary} onPress={browse}><Text style={styles.secondaryText}>Browse workout plans</Text><Text style={styles.secondaryText}>→</Text></Pressable></ScrollView> }
 function Stat({ value, label }: { value: string; label: string }) { return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View> }
 
-function Plans({ routines, schedule, assignDay, start, add, updateRoutine, deleteRoutine }: { routines: Routine[]; schedule: WeeklySchedule; assignDay: (day: Weekday, routineId: string | null) => void; start: (r: Routine) => void; add: (r: Routine) => void; updateRoutine: (r: Routine) => void; deleteRoutine: (id: string) => void }) {
+function Plans({ routines, schedule, assignDay, importSchedule, start, add, updateRoutine, deleteRoutine }: { routines: Routine[]; schedule: WeeklySchedule; assignDay: (day: Weekday, routineId: string | null) => void; importSchedule: (routines: Routine[], schedule: WeeklySchedule) => void; start: (r: Routine) => void; add: (r: Routine) => void; updateRoutine: (r: Routine) => void; deleteRoutine: (id: string) => void }) {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Routine | null>(null);
-  const [pickerDay, setPickerDay] = useState<Weekday | null>(null);
 
   const openNew = () => { setEditing(null); setEditorVisible(true); };
   const openEdit = (r: Routine) => { setEditing(r); setEditorVisible(true); };
   const onSave = (r: Routine) => { if (editing) updateRoutine(r); else add(r); };
   const duplicateTemplate = (t: Routine) => add({ ...t, id: `custom-${Date.now()}`, name: `${t.name} (copy)`, template: false });
   const confirmDelete = (r: Routine) => Alert.alert('Delete plan?', `"${r.name}" will be removed permanently.`, [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteRoutine(r.id) }]);
-  const today = todayWeekday();
 
   return <ScrollView contentContainerStyle={styles.content}>
     <View style={styles.titleRow}><View><Text style={styles.eyebrow}>YOUR TRAINING</Text><Text style={styles.title}>Workout plans</Text></View><Pressable style={styles.add} onPress={openNew}><Text style={styles.addText}>＋</Text></Pressable></View>
 
-    <Text style={styles.section}>WEEKLY SCHEDULE</Text>
-    <View style={styles.scheduleRow}>
-      {WEEKDAYS.map(day => {
-        const routine = findRoutineById(routines, templates, schedule[day]);
-        return <Pressable key={day} style={[styles.scheduleDay, day === today && styles.scheduleDayToday]} onPress={() => setPickerDay(day)}>
-          <Text style={styles.scheduleDayLabel}>{day.slice(0, 3).toUpperCase()}</Text>
-          {routine ? <Text style={styles.scheduleDayRoutine} numberOfLines={2}>{routine.name}</Text> : <Text style={styles.scheduleDayRest}>Rest</Text>}
-        </Pressable>;
-      })}
-    </View>
-    <ScheduleDayPicker day={pickerDay} routines={routines} close={() => setPickerDay(null)} assign={id => { if (pickerDay) assignDay(pickerDay, id); setPickerDay(null); }} />
+    <WeeklySchedule routines={routines} schedule={schedule} assignDay={assignDay} importSchedule={importSchedule} />
 
     {routines.length > 0 && <Text style={styles.section}>MY PLANS</Text>}
     {routines.map(r => <View style={styles.routine} key={r.id}>
@@ -97,18 +90,59 @@ function Plans({ routines, schedule, assignDay, start, add, updateRoutine, delet
   </ScrollView>;
 }
 
-function ScheduleDayPicker({ day, routines, close, assign }: { day: Weekday | null; routines: Routine[]; close: () => void; assign: (routineId: string | null) => void }) {
+function WeeklySchedule({ routines, schedule, assignDay, importSchedule }: { routines: Routine[]; schedule: WeeklySchedule; assignDay: (day: Weekday, routineId: string | null) => void; importSchedule: (routines: Routine[], schedule: WeeklySchedule) => void }) {
+  const [expandedDay, setExpandedDay] = useState<Weekday | null>(null);
+  const today = todayWeekday();
   const options = [...routines, ...templates];
-  return <Modal visible={day !== null} transparent animationType="slide" onRequestClose={close}>
-    <View style={styles.modalShade}>
-      <View style={styles.modal}>
-        <Text style={styles.modalTitle}>{day}</Text>
-        <Pressable style={styles.secondary} onPress={() => assign(null)}><Text style={styles.secondaryText}>Rest day</Text></Pressable>
-        {options.map(r => <Pressable key={r.id} style={styles.secondary} onPress={() => assign(r.id)}><Text style={styles.secondaryText}>{r.name}</Text></Pressable>)}
-        <Pressable onPress={close}><Text style={styles.cancelText}>Close</Text></Pressable>
-      </View>
+
+  const toggleDay = (day: Weekday) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedDay(d => d === day ? null : day);
+  };
+  const selectDayPlan = (day: Weekday, routineId: string | null) => {
+    assignDay(day, routineId);
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setExpandedDay(null);
+  };
+
+  const importFromCsv = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      const text = asset.file ? await asset.file.text() : await new File(asset.uri).text();
+      const parsed = parseScheduleCsv(text);
+      const dayCount = Object.keys(parsed.schedule).length;
+      Alert.alert(
+        'Import schedule?',
+        `This will add ${parsed.routines.length} plan${parsed.routines.length === 1 ? '' : 's'} and assign ${dayCount} day${dayCount === 1 ? '' : 's'} of your week.`,
+        [{ text: 'Cancel', style: 'cancel' }, { text: 'Import', onPress: () => importSchedule(parsed.routines, parsed.schedule) }]
+      );
+    } catch (err) {
+      Alert.alert('Import failed', err instanceof Error ? err.message : 'Could not read that CSV file.');
+    }
+  };
+
+  return <>
+    <View style={styles.titleRow}>
+      <Text style={styles.section}>WEEKLY SCHEDULE</Text>
+      <Pressable onPress={importFromCsv}><Text style={styles.link}>Import CSV</Text></Pressable>
     </View>
-  </Modal>;
+    <View style={styles.scheduleRow}>
+      {WEEKDAYS.map(day => {
+        const routine = findRoutineById(routines, templates, schedule[day]);
+        return <Pressable key={day} style={[styles.scheduleDay, day === today && styles.scheduleDayToday, expandedDay === day && styles.scheduleDayExpanded]} onPress={() => toggleDay(day)}>
+          <Text style={styles.scheduleDayLabel}>{day.slice(0, 3).toUpperCase()}</Text>
+          {routine ? <Text style={styles.scheduleDayRoutine} numberOfLines={2}>{routine.name}</Text> : <Text style={styles.scheduleDayRest}>Rest</Text>}
+        </Pressable>;
+      })}
+    </View>
+    {expandedDay && <View style={styles.scheduleOptions}>
+      <Text style={styles.modalTitle}>{expandedDay}</Text>
+      <Pressable style={styles.secondary} onPress={() => selectDayPlan(expandedDay, null)}><Text style={styles.secondaryText}>Rest day</Text></Pressable>
+      {options.map(r => <Pressable key={r.id} style={styles.secondary} onPress={() => selectDayPlan(expandedDay, r.id)}><Text style={styles.secondaryText}>{r.name}</Text></Pressable>)}
+    </View>}
+  </>;
 }
 
 function PlanEditor({ visible, initial, close, save }: { visible: boolean; initial: Routine | null; close: () => void; save: (r: Routine) => void }) {

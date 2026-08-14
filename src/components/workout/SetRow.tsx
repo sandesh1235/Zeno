@@ -1,14 +1,11 @@
 import { useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, Text, UIManager, View } from 'react-native';
+import { LayoutAnimation, Pressable, Text, View } from 'react-native';
 import { styles } from '../../styles';
 import { fromKg, formatNumber, type WeightUnit } from '../../lib/units';
 import type { ActiveSet } from '../../screens/WorkoutScreen';
 import { Stepper } from './Stepper';
 import { ValuePickerSheet, type PickerKind } from './ValuePickerSheet';
-
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import '../../lib/layoutAnimation';
 
 const parse = (raw: string): number | null => (raw === '' ? null : Number(raw));
 
