@@ -136,7 +136,7 @@ function PlanEditor({ visible, initial, close, save }: { visible: boolean; initi
   return <Modal visible={visible} animationType="slide" onRequestClose={close}>
     <SafeAreaView style={styles.screen}>
       <View style={styles.workHeader}>
-        <Pressable onPress={close}><Text style={styles.back}>‹</Text></Pressable>
+        <Pressable hitSlop={16} onPress={close}><Text style={styles.back}>‹</Text></Pressable>
         <Text style={styles.workTitle}>{initial ? 'Edit plan' : 'New plan'}</Text>
         <Pressable onPress={onSave} disabled={!canSave}><Text style={[styles.secondaryText, styles.saveText, !canSave && styles.saveTextDisabled]}>SAVE</Text></Pressable>
       </View>
@@ -152,7 +152,7 @@ function PlanEditor({ visible, initial, close, save }: { visible: boolean; initi
 
         {exercises.length === 0 && <View style={styles.empty}><Text style={styles.emptyIcon}>＋</Text><Text style={styles.routineName}>No exercises yet</Text><Text style={styles.sub}>Tap the + button to add your first exercise.</Text></View>}
 
-        {exercises.map((e, i) => <ExerciseRow key={`-`} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => Alert.alert('Remove exercise?', `Remove  from this plan?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeEx(i) }])} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}
+        {exercises.map((e, i) => <ExerciseRow key={e.id} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => Alert.alert('Remove exercise?', `Remove ${e.name || 'this exercise'} from this plan?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeEx(i) }])} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}
       </ScrollView>
     </SafeAreaView>
   </Modal>;
@@ -162,7 +162,7 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
   return <View style={styles.exerciseEdit}>
     <View style={styles.exerciseEditTop}>
       <TextInput value={exercise.name} onChangeText={name => onChange({ name })} placeholder="Exercise name" placeholderTextColor={C.muted} style={[styles.input, styles.flex1]} />
-      <Pressable onPress={onRemove} style={styles.removeBtn} accessibilityRole="button" accessibilityLabel={`Remove `} hitSlop={10}><Text style={styles.removeBtnText}>REMOVE</Text></Pressable>
+      <Pressable onPress={onRemove} style={styles.removeBtn} accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name || 'exercise'}`} hitSlop={10}><Text style={styles.removeBtnText}>REMOVE</Text></Pressable>
     </View>
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
       {MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}

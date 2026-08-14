@@ -60,7 +60,7 @@ export function Workout({ routine, unit, history, finish, cancel }: {
 
   return <SafeAreaView style={styles.screen}>
     <View style={styles.workHeader}>
-      <Pressable onPress={() => Alert.alert('Discard workout?', 'Your logged sets will be lost.', [{ text: 'Keep training' }, { text: 'Discard', style: 'destructive', onPress: cancel }])}>
+      <Pressable hitSlop={16} onPress={() => Alert.alert('Discard workout?', 'Your logged sets will be lost.', [{ text: 'Keep training' }, { text: 'Discard', style: 'destructive', onPress: cancel }])}>
         <Text style={styles.back}>‹</Text>
       </Pressable>
       <View>
