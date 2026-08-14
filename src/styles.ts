@@ -55,5 +55,11 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   restTimerText:{position:'absolute',color:C.text,fontWeight:'900',fontSize:16},
   restTimerLabel:{flex:1,color:C.muted,fontWeight:'800',fontSize:12,letterSpacing:1},
   restTimerSkip:{backgroundColor:C.panel2,borderRadius:10,paddingHorizontal:14,paddingVertical:9},
-  restTimerSkipText:{color:C.text,fontWeight:'800',fontSize:12}
+  restTimerSkipText:{color:C.text,fontWeight:'800',fontSize:12},
+  scheduleRow:{flexDirection:'row',gap:6},
+  scheduleDay:{flex:1,backgroundColor:C.panel,borderRadius:12,paddingVertical:10,paddingHorizontal:3,alignItems:'center',justifyContent:'center',gap:4,minHeight:64},
+  scheduleDayToday:{backgroundColor:C.panel2,borderWidth:1,borderColor:C.lime},
+  scheduleDayLabel:{color:C.lime,fontSize:10,fontWeight:'800',letterSpacing:0.5},
+  scheduleDayRoutine:{color:C.text,fontSize:10,fontWeight:'700',textAlign:'center'},
+  scheduleDayRest:{color:C.muted,fontSize:10,fontWeight:'700'}
 });
