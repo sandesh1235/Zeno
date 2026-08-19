@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, SafeAreaView, ScrollView, StatusBar, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
+import { templates, newExercise, newRoutine, MUSCLE_GROUPS, SET_OPTIONS, REP_OPTIONS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
 import { supabase } from './src/supabase';
 
@@ -137,14 +137,14 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
       {MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}
     </ScrollView>
-    <View style={styles.exerciseEditRow}>
-      <View style={styles.stepper}>
-        <Pressable onPress={() => onChange({ sets: Math.max(1, exercise.sets - 1) })} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>−</Text></Pressable>
-        <Text style={styles.stepperValue}>{exercise.sets} sets</Text>
-        <Pressable onPress={() => onChange({ sets: exercise.sets + 1 })} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>+</Text></Pressable>
-      </View>
-      <TextInput value={exercise.reps} onChangeText={reps => onChange({ reps })} placeholder="Reps e.g. 8–12" placeholderTextColor={C.muted} style={[styles.input, styles.repsInput]} />
-    </View>
+    <Text style={styles.miniLabel}>SETS</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
+      {SET_OPTIONS.map(n => <Pressable key={n} onPress={() => onChange({ sets: n })} style={[styles.muscleChip, exercise.sets === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.sets === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}
+    </ScrollView>
+    <Text style={styles.miniLabel}>REPS</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
+      {REP_OPTIONS.map(r => <Pressable key={r} onPress={() => onChange({ reps: r })} style={[styles.muscleChip, exercise.reps === r && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.reps === r && styles.muscleChipTextOn]}>{r}</Text></Pressable>)}
+    </ScrollView>
     <View style={styles.moveRow}>
       <Pressable disabled={isFirst} onPress={() => onMove(-1)} style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↑ Move up</Text></Pressable>
       <Pressable disabled={isLast} onPress={() => onMove(1)} style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↓ Move down</Text></Pressable>
@@ -164,19 +164,14 @@ const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, content
   flex1:{flex:1}, dangerText:{color:C.danger}, saveText:{fontSize:13,fontWeight:'900',letterSpacing:.8}, saveTextDisabled:{opacity:0.35},
   exerciseEdit:{backgroundColor:C.panel,borderRadius:18,padding:15,gap:10,marginBottom:4},
   exerciseEditTop:{flexDirection:'row',alignItems:'center',gap:8},
-  exerciseEditRow:{flexDirection:'row',alignItems:'center',gap:10},
   removeBtn:{width:38,height:38,borderRadius:10,backgroundColor:C.panel2,alignItems:'center',justifyContent:'center'},
   removeBtnText:{color:C.danger,fontSize:16,fontWeight:'800'},
+  miniLabel:{fontSize:10,fontWeight:'800',letterSpacing:1,color:C.muted,marginTop:2},
   muscleChips:{gap:8,paddingVertical:2},
   muscleChip:{paddingHorizontal:13,paddingVertical:8,borderRadius:10,backgroundColor:C.panel2},
   muscleChipOn:{backgroundColor:C.lime},
   muscleChipText:{color:C.muted,fontSize:12,fontWeight:'700'},
   muscleChipTextOn:{color:C.bg},
-  stepper:{flexDirection:'row',alignItems:'center',backgroundColor:C.panel2,borderRadius:12,gap:14,paddingHorizontal:6},
-  stepperBtn:{width:34,height:34,alignItems:'center',justifyContent:'center'},
-  stepperBtnText:{color:C.lime,fontSize:20,fontWeight:'900'},
-  stepperValue:{color:C.text,fontWeight:'700',fontSize:13},
-  repsInput:{flex:1,marginTop:0},
   moveRow:{flexDirection:'row',gap:8},
   moveBtn:{flex:1,backgroundColor:C.panel2,borderRadius:10,paddingVertical:9,alignItems:'center'},
   moveBtnDisabled:{opacity:0.3},
