@@ -51,3 +51,19 @@ export function appendHistoryEntry(history: ExerciseHistory, exerciseName: strin
   const existing = sortedEntries(history, exerciseName);
   return { ...history, [exerciseName]: [entry, ...existing].slice(0, MAX_ENTRIES_PER_EXERCISE) };
 }
+
+export function isRoutineCompletedToday(history: ExerciseHistory, routineId: string): boolean {
+  const today = new Date().toDateString();
+  return Object.values(history).some(entries => entries.some(e => e.routineId === routineId && new Date(e.date).toDateString() === today));
+}
+
+export function getDailyVolumes(history: ExerciseHistory, days: number): number[] {
+  const totals = new Array(days).fill(0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  Object.values(history).forEach(entries => entries.forEach(entry => {
+    const entryDay = new Date(entry.date); entryDay.setHours(0, 0, 0, 0);
+    const fromEnd = Math.round((today.getTime() - entryDay.getTime()) / 86400000);
+    if (fromEnd >= 0 && fromEnd < days) totals[days - 1 - fromEnd] += entry.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+  }));
+  return totals;
+}
