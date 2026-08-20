@@ -18,6 +18,7 @@ import { getVolumeBuckets, isRoutineCompletedToday, type VolumeGranularity } fro
 import { getPersonalRecords } from './src/lib/prs';
 import { exerciseNames, exerciseSeries, muscleDistribution, type Metric, type RangeDays } from './src/analytics';
 import { LineChart } from './src/charts';
+import { StreakCalendar } from './src/components/StreakCalendar';
 import './src/lib/layoutAnimation';
 
 type Tab = 'Home' | 'Plans' | 'Progress' | 'Profile';
@@ -114,6 +115,8 @@ function Progress({ state }: { state: SavedState }) {
     {entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}
     <Text style={styles.section}>Recent PRs</Text>
     {prs.length ? prs.slice(0, 12).map((pr, index) => <View style={styles.record} key={`${pr.exercise}-${pr.type}-${pr.date}-${index}`}><View style={styles.flex1}><Text style={styles.routineName}>{pr.exercise}</Text><Text style={styles.sub}>{pr.type === 'weight' ? 'Weight PR' : 'Estimated 1RM PR'} · {new Date(pr.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text></View><Text style={styles.recordValue}>{showWeight(pr.value, state.profile.unit)}{pr.type === '1rm' ? ' 1RM' : ''}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>★</Text><Text style={styles.routineName}>No PRs yet</Text><Text style={styles.sub}>Your first set establishes a baseline. Beat it in a later workout to log a PR.</Text></View>}
+    <Text style={styles.section}>Workout streak</Text>
+    <StreakCalendar history={state.history} />
     <Text style={styles.section}>Training volume</Text>
     <View style={styles.chart}><View style={styles.segmented}>{(['day', 'week', 'month'] as VolumeGranularity[]).map(g => <Pressable key={g} onPress={() => setVolumeGranularity(g)} style={[styles.segment, volumeGranularity === g && styles.segmentOn]}><Text style={[styles.segmentText, volumeGranularity === g && styles.segmentTextOn]}>{g === 'day' ? 'Daily' : g === 'week' ? 'Weekly' : 'Monthly'}</Text></Pressable>)}</View><Text style={styles.sub}>{hasTrend ? `Total volume lifted, last ${volumeCount} ${volumeGranularity === 'day' ? 'days' : volumeGranularity === 'week' ? 'weeks' : 'months'}.` : 'Charts will build from completed workout history.'}</Text><View style={styles.chartLine}>{buckets.map((b, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (b.value / maxVolume) * 78) : 4 }]} />)}</View><View style={styles.barLabels}>{buckets.map((b, i) => <Text key={i} style={styles.miniLabel}>{b.label}</Text>)}</View></View>
     <Text style={styles.section}>Exercise trends</Text>
