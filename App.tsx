@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, LayoutAnimation, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Image, LayoutAnimation, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import { templates, newExercise, newRoutine, MUSCLE_GROUPS, type Exercise, type Routine } from './src/data';
+import { templates, newExercise, newRoutine, MUSCLE_GROUPS, SET_OPTIONS, REP_OPTIONS, type Exercise, type Routine } from './src/data';
 import { defaultState, loadState, saveState, type SavedState } from './src/storage';
 import { supabase } from './src/supabase';
 import { C } from './src/theme';
@@ -15,6 +15,8 @@ import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib
 import type { WeeklySchedule } from './src/types/schedule';
 import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
 import { getDailyVolumes, isRoutineCompletedToday } from './src/lib/workoutHistory';
+import { exerciseNames, exerciseSeries, type Metric, type RangeDays } from './src/analytics';
+import { LineChart } from './src/charts';
 import './src/lib/layoutAnimation';
 
 type Tab = 'Home' | 'Plans' | 'Progress' | 'Profile';
@@ -228,14 +230,14 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
       {MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}
     </ScrollView>
-    <View style={styles.exerciseEditRow}>
-      <View style={styles.stepper}>
-        <Pressable onPress={() => onChange({ sets: Math.max(1, exercise.sets - 1) })} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>−</Text></Pressable>
-        <Text style={styles.stepperValue}>{exercise.sets} sets</Text>
-        <Pressable onPress={() => onChange({ sets: exercise.sets + 1 })} style={styles.stepperBtn}><Text style={styles.stepperBtnText}>+</Text></Pressable>
-      </View>
-      <TextInput value={exercise.reps} onChangeText={reps => onChange({ reps })} placeholder="Reps e.g. 8–12" placeholderTextColor={C.muted} style={[styles.input, styles.repsInput]} />
-    </View>
+    <Text style={styles.miniLabel}>SETS</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
+      {SET_OPTIONS.map(n => <Pressable key={n} onPress={() => onChange({ sets: n })} style={[styles.muscleChip, exercise.sets === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.sets === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}
+    </ScrollView>
+    <Text style={styles.miniLabel}>REPS</Text>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
+      {REP_OPTIONS.map(r => <Pressable key={r} onPress={() => onChange({ reps: r })} style={[styles.muscleChip, exercise.reps === r && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.reps === r && styles.muscleChipTextOn]}>{r}</Text></Pressable>)}
+    </ScrollView>
     <View style={styles.moveRow}>
       <Pressable disabled={isFirst} onPress={() => onMove(-1)} style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↑ Move up</Text></Pressable>
       <Pressable disabled={isLast} onPress={() => onMove(1)} style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↓ Move down</Text></Pressable>
@@ -243,7 +245,54 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
   </View>;
 }
 
-function Progress({ state }: { state: SavedState }) { const entries = Object.entries(state.records); const dailyVolumes = getDailyVolumes(state.history, 7); const hasTrend = dailyVolumes.some(v => v > 0); const maxVolume = Math.max(...dailyVolumes, 1); return <ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>YOUR RESULTS</Text><Text style={styles.title}>Progress</Text><View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(entries.length)} label="PRs" /></View><Text style={styles.section}>Personal records</Text>{entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}<Text style={styles.section}>Strength trends</Text><View style={styles.chart}><Text style={styles.sub}>{hasTrend ? 'Total volume lifted over the last 7 days.' : 'Charts will build from completed workout history.'}</Text><View style={styles.chartLine}>{dailyVolumes.map((v, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (v / maxVolume) * 78) : 4 }]} />)}</View></View></ScrollView> }
+function Progress({ state }: { state: SavedState }) {
+  const entries = Object.entries(state.records);
+  const dailyVolumes = getDailyVolumes(state.history, 7);
+  const hasTrend = dailyVolumes.some(v => v > 0);
+  const maxVolume = Math.max(...dailyVolumes, 1);
+
+  const names = useMemo(() => exerciseNames(state.history), [state.history]);
+  const [exercise, setExercise] = useState<string | null>(null);
+  const [metric, setMetric] = useState<Metric>('weight');
+  const [range, setRange] = useState<RangeDays>(90);
+  const activeExercise = exercise && names.includes(exercise) ? exercise : names[0] ?? null;
+  const chartWidth = Dimensions.get('window').width - 20 * 2 - 18 * 2; // screen minus content padding minus chart card padding
+
+  const series = useMemo(() => activeExercise ? exerciseSeries(state.history, activeExercise, metric, range) : [], [state.history, activeExercise, metric, range]);
+  const points = series.map(p => ({
+    x: p.date,
+    y: metric === 'weight' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value,
+    label: new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+  }));
+  const metricUnit = metric === 'weight' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
+
+  return <ScrollView contentContainerStyle={styles.content}>
+    <Text style={styles.eyebrow}>YOUR RESULTS</Text><Text style={styles.title}>Progress</Text>
+    <View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(entries.length)} label="PRs" /></View>
+
+    <Text style={styles.section}>Personal records</Text>
+    {entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}
+
+    <Text style={styles.section}>Weekly volume</Text>
+    <View style={styles.chart}><Text style={styles.sub}>{hasTrend ? 'Total volume lifted over the last 7 days.' : 'Charts will build from completed workout history.'}</Text><View style={styles.chartLine}>{dailyVolumes.map((v, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (v / maxVolume) * 78) : 4 }]} />)}</View></View>
+
+    <Text style={styles.section}>Exercise trends</Text>
+    {names.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No exercise history yet</Text><Text style={styles.sub}>Log a couple of workouts and this section will chart your trend per exercise.</Text></View> : <>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
+        {names.map(n => <Pressable key={n} onPress={() => setExercise(n)} style={[styles.muscleChip, activeExercise === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, activeExercise === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}
+      </ScrollView>
+      <View style={styles.chart}>
+        <View style={styles.row}>
+          <View style={styles.segmented}>{(['weight', 'reps', 'volume'] as Metric[]).map(m => <Pressable key={m} onPress={() => setMetric(m)} style={[styles.segment, metric === m && styles.segmentOn]}><Text style={[styles.segmentText, metric === m && styles.segmentTextOn]}>{m === 'weight' ? 'Weight' : m === 'reps' ? 'Reps' : 'Volume'}</Text></Pressable>)}</View>
+        </View>
+        <View style={styles.row}>
+          <View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setRange(r)} style={[styles.segment, range === r && styles.segmentOn]}><Text style={[styles.segmentText, range === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>
+        </View>
+        <LineChart points={points} width={chartWidth} height={140} color={C.lime} gridColor={C.panel2} mutedColor={C.muted} formatY={v => `${v.toFixed(0)} ${metricUnit}`} emptyLabel="No sessions in this range" />
+      </View>
+    </>}
+  </ScrollView>;
+}
 
 function Profile({ state, update, openAuth }: { state: SavedState; update: (p: Partial<SavedState>) => void; openAuth: () => void }) { const profile = state.profile; const toggleReminder = async (on: boolean) => { if (on) { await Notifications.requestPermissionsAsync(); await Notifications.cancelAllScheduledNotificationsAsync(); await Notifications.scheduleNotificationAsync({ content: { title: 'Time to train', body: 'Your next workout is waiting.' }, trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour: 18, minute: 0 } as Notifications.NotificationTriggerInput }); } else await Notifications.cancelAllScheduledNotificationsAsync(); update({ profile: { ...profile, reminder: on } }); }; return <ScrollView contentContainerStyle={styles.content}><Text style={styles.eyebrow}>ACCOUNT</Text><Text style={styles.title}>{profile.name}</Text><Text style={styles.section}>Preferences</Text><View style={styles.setting}><View><Text style={styles.routineName}>Weight unit</Text><Text style={styles.sub}>Display weights in your preferred unit</Text></View><View style={styles.unitToggle}>{(['kg', 'lb'] as const).map(u => <Pressable key={u} onPress={() => update({ profile: { ...profile, unit: u } })}><Text style={[styles.unit, profile.unit === u && styles.unitOn]}>{u.toUpperCase()}</Text></Pressable>)}</View></View><View style={styles.setting}><View><Text style={styles.routineName}>Workout reminder</Text><Text style={styles.sub}>Daily at 6:00 PM</Text></View><Switch value={profile.reminder} onValueChange={toggleReminder} trackColor={{ true: C.lime }} /></View><Text style={styles.section}>Cloud sync</Text><View style={styles.sync}><Text style={styles.sub}>{supabase ? 'Sign in to secure your training history.' : 'Demo mode — add Supabase keys to enable cloud sync.'}</Text><Pressable style={styles.secondary} onPress={openAuth}><Text style={styles.secondaryText}>{supabase ? 'Sign in or create account' : 'View connection setup'}</Text><Text style={styles.secondaryText}>→</Text></Pressable></View></ScrollView> }
 function Auth({ visible, close }: { visible: boolean; close: () => void }) { const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [busy, setBusy] = useState(false); const submit = async (signup: boolean) => { if (!supabase) return Alert.alert('Cloud sync setup', 'Copy .env.example to .env and add your Supabase project URL and anonymous key. Then restart Expo.'); setBusy(true); const res = signup ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password }); setBusy(false); if (res.error) Alert.alert('Could not continue', res.error.message); else { Alert.alert(signup ? 'Check your inbox' : 'Signed in', signup ? 'Confirm your email to finish setting up your account.' : 'Your cloud session is active.'); close(); } }; return <Modal visible={visible} transparent animationType="slide"><View style={styles.modalShade}><View style={styles.modal}><Text style={styles.modalTitle}>Cloud sync</Text><TextInput autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail} placeholder="Email" placeholderTextColor={C.muted} style={styles.input}/><TextInput secureTextEntry value={password} onChangeText={setPassword} placeholder="Password (6+ characters)" placeholderTextColor={C.muted} style={styles.input}/><Pressable style={styles.primary} onPress={() => submit(false)} disabled={busy}><Text style={styles.primaryText}>SIGN IN</Text></Pressable><Pressable onPress={() => submit(true)}><Text style={styles.link}>Create an account</Text></Pressable><Pressable onPress={close}><Text style={styles.cancelText}>Close</Text></Pressable></View></View></Modal> }
