@@ -15,6 +15,7 @@ import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib
 import type { WeeklySchedule } from './src/types/schedule';
 import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
 import { getVolumeBuckets, isRoutineCompletedToday, type VolumeGranularity } from './src/lib/workoutHistory';
+import { getPersonalRecords } from './src/lib/prs';
 import { exerciseNames, exerciseSeries, muscleDistribution, type Metric, type RangeDays } from './src/analytics';
 import { LineChart } from './src/charts';
 import './src/lib/layoutAnimation';
@@ -57,262 +58,68 @@ function Stat({ value, label }: { value: string; label: string }) { return <View
 function Plans({ routines, schedule, assignDay, importSchedule, start, add, updateRoutine, deleteRoutine }: { routines: Routine[]; schedule: WeeklySchedule; assignDay: (day: Weekday, routineId: string | null) => void; importSchedule: (routines: Routine[], schedule: WeeklySchedule) => void; start: (r: Routine) => void; add: (r: Routine) => void; updateRoutine: (r: Routine) => void; deleteRoutine: (id: string) => void }) {
   const [editorVisible, setEditorVisible] = useState(false);
   const [editing, setEditing] = useState<Routine | null>(null);
-
   const openNew = () => { setEditing(null); setEditorVisible(true); };
   const openEdit = (r: Routine) => { setEditing(r); setEditorVisible(true); };
   const onSave = (r: Routine) => { if (editing) updateRoutine(r); else add(r); };
   const duplicateTemplate = (t: Routine) => add({ ...t, id: `custom-${Date.now()}`, name: `${t.name} (copy)`, template: false });
   const confirmDelete = (r: Routine) => Alert.alert('Delete plan?', `"${r.name}" will be removed permanently.`, [{ text: 'Cancel' }, { text: 'Delete', style: 'destructive', onPress: () => deleteRoutine(r.id) }]);
-
   return <ScrollView contentContainerStyle={styles.content}>
     <View style={styles.titleRow}><View><Text style={styles.eyebrow}>YOUR TRAINING</Text><Text style={styles.title}>Workout plans</Text></View><Pressable style={styles.add} onPress={openNew}><Text style={styles.addText}>＋</Text></Pressable></View>
-
     <WeeklySchedule routines={routines} schedule={schedule} assignDay={assignDay} importSchedule={importSchedule} />
-
     {routines.length > 0 && <Text style={styles.section}>MY PLANS</Text>}
-    {routines.map(r => <View style={styles.routine} key={r.id}>
-      <View style={styles.routineTop}><View><Text style={styles.routineName}>{r.name}</Text><Text style={styles.sub}>{r.focus}</Text></View><Text style={styles.duration}>{r.duration}</Text></View>
-      <Text style={styles.exercisePreview}>{r.exercises.length ? r.exercises.map(e => e.name).join(' · ') : 'No exercises yet — tap Edit to add some'}</Text>
-      <View style={styles.row}>
-        <Pressable style={[styles.secondary, styles.flex1]} onPress={() => start(r)}><Text style={styles.secondaryText}>Start</Text></Pressable>
-        <Pressable style={[styles.secondary, styles.flex1]} onPress={() => openEdit(r)}><Text style={styles.secondaryText}>Edit</Text></Pressable>
-        <Pressable style={[styles.secondary, styles.flex1]} onPress={() => confirmDelete(r)}><Text style={[styles.secondaryText, styles.dangerText]}>Delete</Text></Pressable>
-      </View>
-    </View>)}
-
+    {routines.map(r => <View style={styles.routine} key={r.id}><View style={styles.routineTop}><View><Text style={styles.routineName}>{r.name}</Text><Text style={styles.sub}>{r.focus}</Text></View><Text style={styles.duration}>{r.duration}</Text></View><Text style={styles.exercisePreview}>{r.exercises.length ? r.exercises.map(e => e.name).join(' · ') : 'No exercises yet — tap Edit to add some'}</Text><View style={styles.row}><Pressable style={[styles.secondary, styles.flex1]} onPress={() => start(r)}><Text style={styles.secondaryText}>Start</Text></Pressable><Pressable style={[styles.secondary, styles.flex1]} onPress={() => openEdit(r)}><Text style={styles.secondaryText}>Edit</Text></Pressable><Pressable style={[styles.secondary, styles.flex1]} onPress={() => confirmDelete(r)}><Text style={[styles.secondaryText, styles.dangerText]}>Delete</Text></Pressable></View></View>)}
     <Text style={styles.section}>TEMPLATES</Text>
-    {templates.map(t => <View style={styles.routine} key={t.id}>
-      <View style={styles.routineTop}><View><Text style={styles.routineName}>{t.name}</Text><Text style={styles.sub}>{t.focus}</Text></View><Text style={styles.duration}>{t.duration}</Text></View>
-      <Text style={styles.exercisePreview}>{t.exercises.map(e => e.name).join(' · ')}</Text>
-      <View style={styles.row}>
-        <Pressable style={[styles.secondary, styles.flex1]} onPress={() => start(t)}><Text style={styles.secondaryText}>Start</Text></Pressable>
-        <Pressable style={[styles.secondary, styles.flex1]} onPress={() => duplicateTemplate(t)}><Text style={styles.secondaryText}>Customize</Text></Pressable>
-      </View>
-    </View>)}
-
+    {templates.map(t => <View style={styles.routine} key={t.id}><View style={styles.routineTop}><View><Text style={styles.routineName}>{t.name}</Text><Text style={styles.sub}>{t.focus}</Text></View><Text style={styles.duration}>{t.duration}</Text></View><Text style={styles.exercisePreview}>{t.exercises.map(e => e.name).join(' · ')}</Text><View style={styles.row}><Pressable style={[styles.secondary, styles.flex1]} onPress={() => start(t)}><Text style={styles.secondaryText}>Start</Text></Pressable><Pressable style={[styles.secondary, styles.flex1]} onPress={() => duplicateTemplate(t)}><Text style={styles.secondaryText}>Customize</Text></Pressable></View></View>)}
     <PlanEditor visible={editorVisible} initial={editing} close={() => setEditorVisible(false)} save={onSave} />
   </ScrollView>;
 }
 
 function WeeklySchedule({ routines, schedule, assignDay, importSchedule }: { routines: Routine[]; schedule: WeeklySchedule; assignDay: (day: Weekday, routineId: string | null) => void; importSchedule: (routines: Routine[], schedule: WeeklySchedule) => void }) {
-  const [expandedDay, setExpandedDay] = useState<Weekday | null>(null);
-  const today = todayWeekday();
-  const options = [...routines, ...templates];
-
-  const toggleDay = (day: Weekday) => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedDay(d => d === day ? null : day);
-  };
-  const selectDayPlan = (day: Weekday, routineId: string | null) => {
-    assignDay(day, routineId);
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setExpandedDay(null);
-  };
-
-  const importFromCsv = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true });
-      if (result.canceled || !result.assets[0]) return;
-      const asset = result.assets[0];
-      const text = asset.file ? await asset.file.text() : await new File(asset.uri).text();
-      const parsed = parseScheduleCsv(text);
-      const dayCount = Object.keys(parsed.schedule).length;
-      Alert.alert(
-        'Import schedule?',
-        `This will add ${parsed.routines.length} plan${parsed.routines.length === 1 ? '' : 's'} and assign ${dayCount} day${dayCount === 1 ? '' : 's'} of your week.`,
-        [{ text: 'Cancel', style: 'cancel' }, { text: 'Import', onPress: () => importSchedule(parsed.routines, parsed.schedule) }]
-      );
-    } catch (err) {
-      Alert.alert('Import failed', err instanceof Error ? err.message : 'Could not read that CSV file.');
-    }
-  };
-
-  const downloadSampleCsv = async () => {
-    try {
-      if (Platform.OS === 'web') {
-        const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'schedule-sample.csv';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        return;
-      }
-      const file = new File(Paths.cache, 'schedule-sample.csv');
-      if (file.exists) file.delete();
-      file.create();
-      file.write(SAMPLE_CSV);
-      if (!(await Sharing.isAvailableAsync())) { Alert.alert('Sharing unavailable', 'Your device does not support sharing files.'); return; }
-      await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Save sample schedule CSV' });
-    } catch (err) {
-      Alert.alert('Could not create sample file', err instanceof Error ? err.message : 'Please try again.');
-    }
-  };
-
-  return <>
-    <View style={styles.titleRow}>
-      <Text style={styles.section}>WEEKLY SCHEDULE</Text>
-      <View style={styles.row}>
-        <Pressable onPress={downloadSampleCsv}><Text style={styles.link}>Sample CSV</Text></Pressable>
-        <Pressable onPress={importFromCsv}><Text style={styles.link}>Import CSV</Text></Pressable>
-      </View>
-    </View>
-    <View style={styles.scheduleRow}>
-      {WEEKDAYS.map(day => {
-        const routine = findRoutineById(routines, templates, schedule[day]);
-        return <Pressable key={day} style={[styles.scheduleDay, day === today && styles.scheduleDayToday, expandedDay === day && styles.scheduleDayExpanded]} onPress={() => toggleDay(day)}>
-          <Text style={styles.scheduleDayLabel}>{day.slice(0, 3).toUpperCase()}</Text>
-          {routine ? <Text style={styles.scheduleDayRoutine} numberOfLines={2}>{routine.name}</Text> : <Text style={styles.scheduleDayRest}>Rest</Text>}
-        </Pressable>;
-      })}
-    </View>
-    {expandedDay && <View style={styles.scheduleOptions}>
-      <Text style={styles.modalTitle}>{expandedDay}</Text>
-      <Pressable style={styles.secondary} onPress={() => selectDayPlan(expandedDay, null)}><Text style={styles.secondaryText}>Rest day</Text></Pressable>
-      {options.map(r => <Pressable key={r.id} style={styles.secondary} onPress={() => selectDayPlan(expandedDay, r.id)}><Text style={styles.secondaryText}>{r.name}</Text></Pressable>)}
-    </View>}
-  </>;
+  const [expandedDay, setExpandedDay] = useState<Weekday | null>(null); const today = todayWeekday(); const options = [...routines, ...templates];
+  const toggleDay = (day: Weekday) => { LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpandedDay(d => d === day ? null : day); };
+  const selectDayPlan = (day: Weekday, routineId: string | null) => { assignDay(day, routineId); LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut); setExpandedDay(null); };
+  const importFromCsv = async () => { try { const result = await DocumentPicker.getDocumentAsync({ type: '*/*', copyToCacheDirectory: true }); if (result.canceled || !result.assets[0]) return; const asset = result.assets[0]; const text = asset.file ? await asset.file.text() : await new File(asset.uri).text(); const parsed = parseScheduleCsv(text); const dayCount = Object.keys(parsed.schedule).length; Alert.alert('Import schedule?', `This will add ${parsed.routines.length} plan${parsed.routines.length === 1 ? '' : 's'} and assign ${dayCount} day${dayCount === 1 ? '' : 's'} of your week.`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Import', onPress: () => importSchedule(parsed.routines, parsed.schedule) }]); } catch (err) { Alert.alert('Import failed', err instanceof Error ? err.message : 'Could not read that CSV file.'); } };
+  const downloadSampleCsv = async () => { try { if (Platform.OS === 'web') { const blob = new Blob([SAMPLE_CSV], { type: 'text/csv' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'schedule-sample.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url); return; } const file = new File(Paths.cache, 'schedule-sample.csv'); if (file.exists) file.delete(); file.create(); file.write(SAMPLE_CSV); if (!(await Sharing.isAvailableAsync())) { Alert.alert('Sharing unavailable', 'Your device does not support sharing files.'); return; } await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Save sample schedule CSV' }); } catch (err) { Alert.alert('Could not create sample file', err instanceof Error ? err.message : 'Please try again.'); } };
+  return <><View style={styles.titleRow}><Text style={styles.section}>WEEKLY SCHEDULE</Text><View style={styles.row}><Pressable onPress={downloadSampleCsv}><Text style={styles.link}>Sample CSV</Text></Pressable><Pressable onPress={importFromCsv}><Text style={styles.link}>Import CSV</Text></Pressable></View></View><View style={styles.scheduleRow}>{WEEKDAYS.map(day => { const routine = findRoutineById(routines, templates, schedule[day]); return <Pressable key={day} style={[styles.scheduleDay, day === today && styles.scheduleDayToday, expandedDay === day && styles.scheduleDayExpanded]} onPress={() => toggleDay(day)}><Text style={styles.scheduleDayLabel}>{day.slice(0, 3).toUpperCase()}</Text>{routine ? <Text style={styles.scheduleDayRoutine} numberOfLines={2}>{routine.name}</Text> : <Text style={styles.scheduleDayRest}>Rest</Text>}</Pressable>; })}</View>{expandedDay && <View style={styles.scheduleOptions}><Text style={styles.modalTitle}>{expandedDay}</Text><Pressable style={styles.secondary} onPress={() => selectDayPlan(expandedDay, null)}><Text style={styles.secondaryText}>Rest day</Text></Pressable>{options.map(r => <Pressable key={r.id} style={styles.secondary} onPress={() => selectDayPlan(expandedDay, r.id)}><Text style={styles.secondaryText}>{r.name}</Text></Pressable>)}</View>}</>;
 }
 
 function PlanEditor({ visible, initial, close, save }: { visible: boolean; initial: Routine | null; close: () => void; save: (r: Routine) => void }) {
-  const [name, setName] = useState(''); const [focus, setFocus] = useState(''); const [duration, setDuration] = useState('45 min');
-  const [exercises, setExercises] = useState<Exercise[]>([]);
-
-  useEffect(() => {
-    if (!visible) return;
-    const base = initial ?? newRoutine();
-    setName(initial ? base.name : ''); setFocus(base.focus); setDuration(base.duration); setExercises(base.exercises);
-  }, [visible, initial]);
-
-  const addEx = () => setExercises(ex => [...ex, newExercise()]);
-  const updateEx = (id: string, patch: Partial<Exercise>) => setExercises(ex => ex.map(e => e.id === id ? { ...e, ...patch } : e));
-  const removeEx = (index: number) => setExercises(ex => ex.filter((_, currentIndex) => currentIndex !== index));
-  const moveEx = (id: string, dir: -1 | 1) => setExercises(ex => {
-    const i = ex.findIndex(e => e.id === id); const j = i + dir;
-    if (j < 0 || j >= ex.length) return ex;
-    const copy = [...ex]; [copy[i], copy[j]] = [copy[j], copy[i]]; return copy;
-  });
-
+  const [name, setName] = useState(''); const [focus, setFocus] = useState(''); const [duration, setDuration] = useState('45 min'); const [exercises, setExercises] = useState<Exercise[]>([]);
+  useEffect(() => { if (!visible) return; const base = initial ?? newRoutine(); setName(initial ? base.name : ''); setFocus(base.focus); setDuration(base.duration); setExercises(base.exercises); }, [visible, initial]);
+  const addEx = () => setExercises(ex => [...ex, newExercise()]); const updateEx = (id: string, patch: Partial<Exercise>) => setExercises(ex => ex.map(e => e.id === id ? { ...e, ...patch } : e)); const removeEx = (index: number) => setExercises(ex => ex.filter((_, currentIndex) => currentIndex !== index));
+  const moveEx = (id: string, dir: -1 | 1) => setExercises(ex => { const i = ex.findIndex(e => e.id === id); const j = i + dir; if (j < 0 || j >= ex.length) return ex; const copy = [...ex]; [copy[i], copy[j]] = [copy[j], copy[i]]; return copy; });
   const canSave = name.trim().length > 0 && exercises.length > 0 && exercises.every(e => e.name.trim().length > 0);
   const onSave = () => { save({ id: initial?.id ?? newRoutine().id, name: name.trim(), focus: focus.trim() || 'Custom plan', duration: duration.trim() || '45 min', exercises, template: false }); close(); };
-
-  return <Modal visible={visible} animationType="slide" onRequestClose={close}>
-    <SafeAreaView style={styles.screen}>
-      <View style={styles.workHeader}>
-        <Pressable hitSlop={16} onPress={close}><Text style={styles.back}>‹</Text></Pressable>
-        <Text style={styles.workTitle}>{initial ? 'Edit plan' : 'New plan'}</Text>
-        <Pressable onPress={onSave} disabled={!canSave}><Text style={[styles.secondaryText, styles.saveText, !canSave && styles.saveTextDisabled]}>SAVE</Text></Pressable>
-      </View>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.label}>PLAN NAME</Text>
-        <TextInput value={name} onChangeText={setName} placeholder="e.g. Leg Day" placeholderTextColor={C.muted} style={styles.input} />
-        <Text style={styles.label}>FOCUS</Text>
-        <TextInput value={focus} onChangeText={setFocus} placeholder="e.g. Strength · Lower body" placeholderTextColor={C.muted} style={styles.input} />
-        <Text style={styles.label}>DURATION</Text>
-        <TextInput value={duration} onChangeText={setDuration} placeholder="e.g. 45 min" placeholderTextColor={C.muted} style={styles.input} />
-
-        <View style={styles.titleRow}><Text style={styles.section}>Exercises</Text><Pressable style={styles.add} onPress={addEx}><Text style={styles.addText}>＋</Text></Pressable></View>
-
-        {exercises.length === 0 && <View style={styles.empty}><Text style={styles.emptyIcon}>＋</Text><Text style={styles.routineName}>No exercises yet</Text><Text style={styles.sub}>Tap the + button to add your first exercise.</Text></View>}
-
-        {exercises.map((e, i) => <ExerciseRow key={e.id} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => Alert.alert('Remove exercise?', `Remove ${e.name || 'this exercise'} from this plan?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeEx(i) }])} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}
-      </ScrollView>
-    </SafeAreaView>
-  </Modal>;
+  return <Modal visible={visible} animationType="slide" onRequestClose={close}><SafeAreaView style={styles.screen}><View style={styles.workHeader}><Pressable hitSlop={16} onPress={close}><Text style={styles.back}>‹</Text></Pressable><Text style={styles.workTitle}>{initial ? 'Edit plan' : 'New plan'}</Text><Pressable onPress={onSave} disabled={!canSave}><Text style={[styles.secondaryText, styles.saveText, !canSave && styles.saveTextDisabled]}>SAVE</Text></Pressable></View><ScrollView contentContainerStyle={styles.content}><Text style={styles.label}>PLAN NAME</Text><TextInput value={name} onChangeText={setName} placeholder="e.g. Leg Day" placeholderTextColor={C.muted} style={styles.input} /><Text style={styles.label}>FOCUS</Text><TextInput value={focus} onChangeText={setFocus} placeholder="e.g. Strength · Lower body" placeholderTextColor={C.muted} style={styles.input} /><Text style={styles.label}>DURATION</Text><TextInput value={duration} onChangeText={setDuration} placeholder="e.g. 45 min" placeholderTextColor={C.muted} style={styles.input} /><View style={styles.titleRow}><Text style={styles.section}>Exercises</Text><Pressable style={styles.add} onPress={addEx}><Text style={styles.addText}>＋</Text></Pressable></View>{exercises.length === 0 && <View style={styles.empty}><Text style={styles.emptyIcon}>＋</Text><Text style={styles.routineName}>No exercises yet</Text><Text style={styles.sub}>Tap the + button to add your first exercise.</Text></View>}{exercises.map((e, i) => <ExerciseRow key={e.id} exercise={e} onChange={patch => updateEx(e.id, patch)} onRemove={() => Alert.alert('Remove exercise?', `Remove ${e.name || 'this exercise'} from this plan?`, [{ text: 'Cancel', style: 'cancel' }, { text: 'Remove', style: 'destructive', onPress: () => removeEx(i) }])} onMove={dir => moveEx(e.id, dir)} isFirst={i === 0} isLast={i === exercises.length - 1} />)}</ScrollView></SafeAreaView></Modal>;
 }
 
-function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: { exercise: Exercise; onChange: (patch: Partial<Exercise>) => void; onRemove: () => void; onMove: (dir: -1 | 1) => void; isFirst: boolean; isLast: boolean }) {
-  return <View style={styles.exerciseEdit}>
-    <View style={styles.exerciseEditTop}>
-      <TextInput value={exercise.name} onChangeText={name => onChange({ name })} placeholder="Exercise name" placeholderTextColor={C.muted} style={[styles.input, styles.flex1]} />
-      <Pressable onPress={onRemove} style={styles.removeBtn} accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name || 'exercise'}`} hitSlop={10}><Text style={styles.removeBtnText}>REMOVE</Text></Pressable>
-    </View>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
-      {MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}
-    </ScrollView>
-    <Text style={styles.miniLabel}>SETS</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
-      {SET_OPTIONS.map(n => <Pressable key={n} onPress={() => onChange({ sets: n })} style={[styles.muscleChip, exercise.sets === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.sets === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}
-    </ScrollView>
-    <Text style={styles.miniLabel}>REPS</Text>
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
-      {REP_OPTIONS.map(r => <Pressable key={r} onPress={() => onChange({ reps: r })} style={[styles.muscleChip, exercise.reps === r && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.reps === r && styles.muscleChipTextOn]}>{r}</Text></Pressable>)}
-    </ScrollView>
-    <View style={styles.moveRow}>
-      <Pressable disabled={isFirst} onPress={() => onMove(-1)} style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↑ Move up</Text></Pressable>
-      <Pressable disabled={isLast} onPress={() => onMove(1)} style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↓ Move down</Text></Pressable>
-    </View>
-  </View>;
-}
+function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: { exercise: Exercise; onChange: (patch: Partial<Exercise>) => void; onRemove: () => void; onMove: (dir: -1 | 1) => void; isFirst: boolean; isLast: boolean }) { return <View style={styles.exerciseEdit}><View style={styles.exerciseEditTop}><TextInput value={exercise.name} onChangeText={name => onChange({ name })} placeholder="Exercise name" placeholderTextColor={C.muted} style={[styles.input, styles.flex1]} /><Pressable onPress={onRemove} style={styles.removeBtn} accessibilityRole="button" accessibilityLabel={`Remove ${exercise.name || 'exercise'}`} hitSlop={10}><Text style={styles.removeBtnText}>REMOVE</Text></Pressable></View><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>{MUSCLE_GROUPS.map(m => <Pressable key={m} onPress={() => onChange({ muscle: m })} style={[styles.muscleChip, exercise.muscle === m && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.muscle === m && styles.muscleChipTextOn]}>{m}</Text></Pressable>)}</ScrollView><Text style={styles.miniLabel}>SETS</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>{SET_OPTIONS.map(n => <Pressable key={n} onPress={() => onChange({ sets: n })} style={[styles.muscleChip, exercise.sets === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.sets === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}</ScrollView><Text style={styles.miniLabel}>REPS</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>{REP_OPTIONS.map(r => <Pressable key={r} onPress={() => onChange({ reps: r })} style={[styles.muscleChip, exercise.reps === r && styles.muscleChipOn]}><Text style={[styles.muscleChipText, exercise.reps === r && styles.muscleChipTextOn]}>{r}</Text></Pressable>)}</ScrollView><View style={styles.moveRow}><Pressable disabled={isFirst} onPress={() => onMove(-1)} style={[styles.moveBtn, isFirst && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↑ Move up</Text></Pressable><Pressable disabled={isLast} onPress={() => onMove(1)} style={[styles.moveBtn, isLast && styles.moveBtnDisabled]}><Text style={styles.moveBtnText}>↓ Move down</Text></Pressable></View></View>; }
 
 function Progress({ state }: { state: SavedState }) {
   const entries = Object.entries(state.records);
+  const prs = useMemo(() => getPersonalRecords(state.history), [state.history]);
   const [volumeGranularity, setVolumeGranularity] = useState<VolumeGranularity>('day');
   const volumeCount = volumeGranularity === 'day' ? 7 : volumeGranularity === 'week' ? 8 : 6;
   const buckets = useMemo(() => getVolumeBuckets(state.history, volumeGranularity, volumeCount), [state.history, volumeGranularity, volumeCount]);
-  const hasTrend = buckets.some(b => b.value > 0);
-  const maxVolume = Math.max(...buckets.map(b => b.value), 1);
-
-  const names = useMemo(() => exerciseNames(state.history), [state.history]);
-  const [exercise, setExercise] = useState<string | null>(null);
-  const [metric, setMetric] = useState<Metric>('weight');
-  const [range, setRange] = useState<RangeDays>(90);
-  const activeExercise = exercise && names.includes(exercise) ? exercise : names[0] ?? null;
-  const chartWidth = Dimensions.get('window').width - 20 * 2 - 18 * 2; // screen minus content padding minus chart card padding
-
+  const hasTrend = buckets.some(b => b.value > 0); const maxVolume = Math.max(...buckets.map(b => b.value), 1);
+  const names = useMemo(() => exerciseNames(state.history), [state.history]); const [exercise, setExercise] = useState<string | null>(null); const [metric, setMetric] = useState<Metric>('weight'); const [range, setRange] = useState<RangeDays>(90); const activeExercise = exercise && names.includes(exercise) ? exercise : names[0] ?? null; const chartWidth = Dimensions.get('window').width - 20 * 2 - 18 * 2;
   const series = useMemo(() => activeExercise ? exerciseSeries(state.history, activeExercise, metric, range) : [], [state.history, activeExercise, metric, range]);
-  const points = series.map(p => ({
-    x: p.date,
-    y: metric === 'weight' || metric === '1rm' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value,
-    label: new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-  }));
+  const points = series.map(p => ({ x: p.date, y: metric === 'weight' || metric === '1rm' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value, label: new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }));
   const metricUnit = metric === 'weight' || metric === '1rm' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
-
-  const [muscleRange, setMuscleRange] = useState<RangeDays>(30);
-  const muscleVolumes = useMemo(() => muscleDistribution(state.history, muscleRange), [state.history, muscleRange]);
-  const muscleTotal = muscleVolumes.reduce((sum, m) => sum + m.volume, 0) || 1;
-
+  const [muscleRange, setMuscleRange] = useState<RangeDays>(30); const muscleVolumes = useMemo(() => muscleDistribution(state.history, muscleRange), [state.history, muscleRange]); const muscleTotal = muscleVolumes.reduce((sum, m) => sum + m.volume, 0) || 1;
   return <ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.eyebrow}>YOUR RESULTS</Text><Text style={styles.title}>Progress</Text>
-    <View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(entries.length)} label="PRs" /></View>
-
+    <View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(prs.length)} label="PRs" /></View>
     <Text style={styles.section}>Personal records</Text>
     {entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}
-
+    <Text style={styles.section}>Recent PRs</Text>
+    {prs.length ? prs.slice(0, 12).map((pr, index) => <View style={styles.record} key={`${pr.exercise}-${pr.type}-${pr.date}-${index}`}><View style={styles.flex1}><Text style={styles.routineName}>{pr.exercise}</Text><Text style={styles.sub}>{pr.type === 'weight' ? 'Weight PR' : 'Estimated 1RM PR'} · {new Date(pr.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text></View><Text style={styles.recordValue}>{showWeight(pr.value, state.profile.unit)}{pr.type === '1rm' ? ' 1RM' : ''}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>★</Text><Text style={styles.routineName}>No PRs yet</Text><Text style={styles.sub}>Your first set establishes a baseline. Beat it in a later workout to log a PR.</Text></View>}
     <Text style={styles.section}>Training volume</Text>
-    <View style={styles.chart}>
-      <View style={styles.segmented}>{(['day', 'week', 'month'] as VolumeGranularity[]).map(g => <Pressable key={g} onPress={() => setVolumeGranularity(g)} style={[styles.segment, volumeGranularity === g && styles.segmentOn]}><Text style={[styles.segmentText, volumeGranularity === g && styles.segmentTextOn]}>{g === 'day' ? 'Daily' : g === 'week' ? 'Weekly' : 'Monthly'}</Text></Pressable>)}</View>
-      <Text style={styles.sub}>{hasTrend ? `Total volume lifted, last ${volumeCount} ${volumeGranularity === 'day' ? 'days' : volumeGranularity === 'week' ? 'weeks' : 'months'}.` : 'Charts will build from completed workout history.'}</Text>
-      <View style={styles.chartLine}>{buckets.map((b, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (b.value / maxVolume) * 78) : 4 }]} />)}</View>
-      <View style={styles.barLabels}>{buckets.map((b, i) => <Text key={i} style={styles.miniLabel}>{b.label}</Text>)}</View>
-    </View>
-
+    <View style={styles.chart}><View style={styles.segmented}>{(['day', 'week', 'month'] as VolumeGranularity[]).map(g => <Pressable key={g} onPress={() => setVolumeGranularity(g)} style={[styles.segment, volumeGranularity === g && styles.segmentOn]}><Text style={[styles.segmentText, volumeGranularity === g && styles.segmentTextOn]}>{g === 'day' ? 'Daily' : g === 'week' ? 'Weekly' : 'Monthly'}</Text></Pressable>)}</View><Text style={styles.sub}>{hasTrend ? `Total volume lifted, last ${volumeCount} ${volumeGranularity === 'day' ? 'days' : volumeGranularity === 'week' ? 'weeks' : 'months'}.` : 'Charts will build from completed workout history.'}</Text><View style={styles.chartLine}>{buckets.map((b, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (b.value / maxVolume) * 78) : 4 }]} />)}</View><View style={styles.barLabels}>{buckets.map((b, i) => <Text key={i} style={styles.miniLabel}>{b.label}</Text>)}</View></View>
     <Text style={styles.section}>Exercise trends</Text>
-    {names.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No exercise history yet</Text><Text style={styles.sub}>Log a couple of workouts and this section will chart your trend per exercise.</Text></View> : <>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>
-        {names.map(n => <Pressable key={n} onPress={() => setExercise(n)} style={[styles.muscleChip, activeExercise === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, activeExercise === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}
-      </ScrollView>
-      <View style={styles.chart}>
-        <View style={styles.row}>
-          <View style={styles.segmented}>{(['weight', 'reps', 'volume', '1rm'] as Metric[]).map(m => <Pressable key={m} onPress={() => setMetric(m)} style={[styles.segment, metric === m && styles.segmentOn]}><Text style={[styles.segmentText, metric === m && styles.segmentTextOn]}>{m === 'weight' ? 'Weight' : m === 'reps' ? 'Reps' : m === 'volume' ? 'Volume' : '1RM'}</Text></Pressable>)}</View>
-        </View>
-        <View style={styles.row}>
-          <View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setRange(r)} style={[styles.segment, range === r && styles.segmentOn]}><Text style={[styles.segmentText, range === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>
-        </View>
-        <LineChart points={points} width={chartWidth} height={140} color={C.lime} gridColor={C.panel2} mutedColor={C.muted} formatY={v => `${v.toFixed(0)} ${metricUnit}`} emptyLabel="No sessions in this range" />
-        {metric === '1rm' && <Text style={styles.miniLabel}>Estimated via Epley formula: weight × (1 + reps ÷ 30). Not a substitute for an actual tested max.</Text>}
-      </View>
-    </>}
-
+    {names.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No exercise history yet</Text><Text style={styles.sub}>Log a couple of workouts and this section will chart your trend per exercise.</Text></View> : <><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.muscleChips}>{names.map(n => <Pressable key={n} onPress={() => setExercise(n)} style={[styles.muscleChip, activeExercise === n && styles.muscleChipOn]}><Text style={[styles.muscleChipText, activeExercise === n && styles.muscleChipTextOn]}>{n}</Text></Pressable>)}</ScrollView><View style={styles.chart}><View style={styles.row}><View style={styles.segmented}>{(['weight', 'reps', 'volume', '1rm'] as Metric[]).map(m => <Pressable key={m} onPress={() => setMetric(m)} style={[styles.segment, metric === m && styles.segmentOn]}><Text style={[styles.segmentText, metric === m && styles.segmentTextOn]}>{m === 'weight' ? 'Weight' : m === 'reps' ? 'Reps' : m === 'volume' ? 'Volume' : '1RM'}</Text></Pressable>)}</View></View><View style={styles.row}><View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setRange(r)} style={[styles.segment, range === r && styles.segmentOn]}><Text style={[styles.segmentText, range === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View></View><LineChart points={points} width={chartWidth} height={140} color={C.lime} gridColor={C.panel2} mutedColor={C.muted} formatY={v => `${v.toFixed(0)} ${metricUnit}`} emptyLabel="No sessions in this range" />{metric === '1rm' && <Text style={styles.miniLabel}>Estimated via Epley formula: weight × (1 + reps ÷ 30). Not a substitute for an actual tested max.</Text>}</View></>}
     <Text style={styles.section}>Muscle balance</Text>
-    {muscleVolumes.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No sets logged yet</Text><Text style={styles.sub}>Complete a workout and this section will show which muscle groups you're training most.</Text></View> : <View style={styles.chart}>
-      <View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setMuscleRange(r)} style={[styles.segment, muscleRange === r && styles.segmentOn]}><Text style={[styles.segmentText, muscleRange === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>
-      {muscleVolumes.map(m => <View style={styles.muscleRow} key={m.muscle}>
-        <Text style={styles.muscleRowLabel}>{m.muscle}</Text>
-        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.round((m.volume / muscleTotal) * 100)}%` }]} /></View>
-        <Text style={styles.muscleRowValue}>{Math.round(m.volume).toLocaleString()}</Text>
-      </View>)}
-    </View>}
+    {muscleVolumes.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No sets logged yet</Text><Text style={styles.sub}>Complete a workout and this section will show which muscle groups you're training most.</Text></View> : <View style={styles.chart}><View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setMuscleRange(r)} style={[styles.segment, muscleRange === r && styles.segmentOn]}><Text style={[styles.segmentText, muscleRange === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>{muscleVolumes.map(m => <View style={styles.muscleRow} key={m.muscle}><Text style={styles.muscleRowLabel}>{m.muscle}</Text><View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.round((m.volume / muscleTotal) * 100)}%` }]} /></View><Text style={styles.muscleRowValue}>{Math.round(m.volume).toLocaleString()}</Text></View>)}</View>}
   </ScrollView>;
 }
 
