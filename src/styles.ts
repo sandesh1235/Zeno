@@ -69,5 +69,8 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   scheduleDayRoutine:{color:C.text,fontSize:10,fontWeight:'700',textAlign:'center'},
   scheduleDayRest:{color:C.muted,fontSize:10,fontWeight:'700'},
   scheduleDayExpanded:{borderWidth:1,borderColor:C.lime},
-  scheduleOptions:{backgroundColor:C.panel,borderRadius:16,padding:14,gap:6,marginTop:6}
+  scheduleOptions:{backgroundColor:C.panel,borderRadius:16,padding:14,gap:6,marginTop:6},
+  muscleRow:{flexDirection:'row',alignItems:'center',gap:10},
+  muscleRowLabel:{width:76,color:C.text,fontWeight:'700',fontSize:13},
+  muscleRowValue:{width:56,textAlign:'right',color:C.muted,fontSize:11,fontWeight:'700'}
 });

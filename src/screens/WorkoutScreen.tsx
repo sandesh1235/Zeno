@@ -53,7 +53,7 @@ export function Workout({ routine, unit, history, finish, cancel }: {
           doneSets.push({ weight: kg, reps, rpe: s.rpe === '' ? null : Number(s.rpe) });
         }
       });
-      if (doneSets.length > 0) nextHistory = appendHistoryEntry(nextHistory, e.name, { date: new Date().toISOString(), routineId: routine.id, sets: doneSets });
+      if (doneSets.length > 0) nextHistory = appendHistoryEntry(nextHistory, e.name, { date: new Date().toISOString(), routineId: routine.id, muscle: e.muscle, sets: doneSets });
     });
     finish(volume, records, nextHistory);
   };

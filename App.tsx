@@ -15,7 +15,7 @@ import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib
 import type { WeeklySchedule } from './src/types/schedule';
 import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
 import { getVolumeBuckets, isRoutineCompletedToday, type VolumeGranularity } from './src/lib/workoutHistory';
-import { exerciseNames, exerciseSeries, type Metric, type RangeDays } from './src/analytics';
+import { exerciseNames, exerciseSeries, muscleDistribution, type Metric, type RangeDays } from './src/analytics';
 import { LineChart } from './src/charts';
 import './src/lib/layoutAnimation';
 
@@ -268,6 +268,10 @@ function Progress({ state }: { state: SavedState }) {
   }));
   const metricUnit = metric === 'weight' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
 
+  const [muscleRange, setMuscleRange] = useState<RangeDays>(30);
+  const muscleVolumes = useMemo(() => muscleDistribution(state.history, muscleRange), [state.history, muscleRange]);
+  const muscleTotal = muscleVolumes.reduce((sum, m) => sum + m.volume, 0) || 1;
+
   return <ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.eyebrow}>YOUR RESULTS</Text><Text style={styles.title}>Progress</Text>
     <View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(entries.length)} label="PRs" /></View>
@@ -298,6 +302,16 @@ function Progress({ state }: { state: SavedState }) {
         <LineChart points={points} width={chartWidth} height={140} color={C.lime} gridColor={C.panel2} mutedColor={C.muted} formatY={v => `${v.toFixed(0)} ${metricUnit}`} emptyLabel="No sessions in this range" />
       </View>
     </>}
+
+    <Text style={styles.section}>Muscle balance</Text>
+    {muscleVolumes.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No sets logged yet</Text><Text style={styles.sub}>Complete a workout and this section will show which muscle groups you're training most.</Text></View> : <View style={styles.chart}>
+      <View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setMuscleRange(r)} style={[styles.segment, muscleRange === r && styles.segmentOn]}><Text style={[styles.segmentText, muscleRange === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>
+      {muscleVolumes.map(m => <View style={styles.muscleRow} key={m.muscle}>
+        <Text style={styles.muscleRowLabel}>{m.muscle}</Text>
+        <View style={styles.progressTrack}><View style={[styles.progressFill, { width: `${Math.round((m.volume / muscleTotal) * 100)}%` }]} /></View>
+        <Text style={styles.muscleRowValue}>{Math.round(m.volume).toLocaleString()}</Text>
+      </View>)}
+    </View>}
   </ScrollView>;
 }
 
