@@ -67,3 +67,41 @@ export function getDailyVolumes(history: ExerciseHistory, days: number): number[
   }));
   return totals;
 }
+
+export type VolumeGranularity = 'day' | 'week' | 'month';
+export type VolumeBucket = { label: string; value: number };
+
+const startOfWeek = (d: Date) => { const dt = new Date(d); const day = (dt.getDay() + 6) % 7; dt.setDate(dt.getDate() - day); dt.setHours(0, 0, 0, 0); return dt; };
+
+// Buckets recent workout volume into `count` trailing periods (days, weeks starting Monday, or calendar months).
+export function getVolumeBuckets(history: ExerciseHistory, granularity: VolumeGranularity, count: number): VolumeBucket[] {
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const values = new Array(count).fill(0);
+  const labels = new Array(count).fill('');
+
+  for (let i = 0; i < count; i++) {
+    const offset = count - 1 - i;
+    if (granularity === 'day') { const d = new Date(now); d.setDate(d.getDate() - offset); labels[i] = d.toLocaleDateString(undefined, { weekday: 'short' }); }
+    else if (granularity === 'week') { const d = new Date(now); d.setDate(d.getDate() - offset * 7); labels[i] = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+    else { const d = new Date(now.getFullYear(), now.getMonth() - offset, 1); labels[i] = d.toLocaleDateString(undefined, { month: 'short' }); }
+  }
+
+  Object.values(history).forEach(entries => entries.forEach(entry => {
+    const d = new Date(entry.date); d.setHours(0, 0, 0, 0);
+    const volume = entry.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+    let idx: number | null = null;
+    if (granularity === 'day') {
+      const fromEnd = Math.round((now.getTime() - d.getTime()) / 86400000);
+      if (fromEnd >= 0 && fromEnd < count) idx = count - 1 - fromEnd;
+    } else if (granularity === 'week') {
+      const fromEnd = Math.round((startOfWeek(now).getTime() - startOfWeek(d).getTime()) / (7 * 86400000));
+      if (fromEnd >= 0 && fromEnd < count) idx = count - 1 - fromEnd;
+    } else {
+      const fromEnd = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+      if (fromEnd >= 0 && fromEnd < count) idx = count - 1 - fromEnd;
+    }
+    if (idx !== null) values[idx] += volume;
+  }));
+
+  return values.map((value, i) => ({ label: labels[i], value }));
+}
