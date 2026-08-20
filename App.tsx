@@ -14,7 +14,7 @@ import { Workout } from './src/screens/WorkoutScreen';
 import { WEEKDAYS, findRoutineById, todayWeekday, type Weekday } from './src/lib/schedule';
 import type { WeeklySchedule } from './src/types/schedule';
 import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
-import { getDailyVolumes, isRoutineCompletedToday } from './src/lib/workoutHistory';
+import { getVolumeBuckets, isRoutineCompletedToday, type VolumeGranularity } from './src/lib/workoutHistory';
 import { exerciseNames, exerciseSeries, type Metric, type RangeDays } from './src/analytics';
 import { LineChart } from './src/charts';
 import './src/lib/layoutAnimation';
@@ -247,9 +247,11 @@ function ExerciseRow({ exercise, onChange, onRemove, onMove, isFirst, isLast }: 
 
 function Progress({ state }: { state: SavedState }) {
   const entries = Object.entries(state.records);
-  const dailyVolumes = getDailyVolumes(state.history, 7);
-  const hasTrend = dailyVolumes.some(v => v > 0);
-  const maxVolume = Math.max(...dailyVolumes, 1);
+  const [volumeGranularity, setVolumeGranularity] = useState<VolumeGranularity>('day');
+  const volumeCount = volumeGranularity === 'day' ? 7 : volumeGranularity === 'week' ? 8 : 6;
+  const buckets = useMemo(() => getVolumeBuckets(state.history, volumeGranularity, volumeCount), [state.history, volumeGranularity, volumeCount]);
+  const hasTrend = buckets.some(b => b.value > 0);
+  const maxVolume = Math.max(...buckets.map(b => b.value), 1);
 
   const names = useMemo(() => exerciseNames(state.history), [state.history]);
   const [exercise, setExercise] = useState<string | null>(null);
@@ -273,8 +275,13 @@ function Progress({ state }: { state: SavedState }) {
     <Text style={styles.section}>Personal records</Text>
     {entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}
 
-    <Text style={styles.section}>Weekly volume</Text>
-    <View style={styles.chart}><Text style={styles.sub}>{hasTrend ? 'Total volume lifted over the last 7 days.' : 'Charts will build from completed workout history.'}</Text><View style={styles.chartLine}>{dailyVolumes.map((v, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (v / maxVolume) * 78) : 4 }]} />)}</View></View>
+    <Text style={styles.section}>Training volume</Text>
+    <View style={styles.chart}>
+      <View style={styles.segmented}>{(['day', 'week', 'month'] as VolumeGranularity[]).map(g => <Pressable key={g} onPress={() => setVolumeGranularity(g)} style={[styles.segment, volumeGranularity === g && styles.segmentOn]}><Text style={[styles.segmentText, volumeGranularity === g && styles.segmentTextOn]}>{g === 'day' ? 'Daily' : g === 'week' ? 'Weekly' : 'Monthly'}</Text></Pressable>)}</View>
+      <Text style={styles.sub}>{hasTrend ? `Total volume lifted, last ${volumeCount} ${volumeGranularity === 'day' ? 'days' : volumeGranularity === 'week' ? 'weeks' : 'months'}.` : 'Charts will build from completed workout history.'}</Text>
+      <View style={styles.chartLine}>{buckets.map((b, i) => <View key={i} style={[styles.bar, { height: hasTrend ? Math.max(4, (b.value / maxVolume) * 78) : 4 }]} />)}</View>
+      <View style={styles.barLabels}>{buckets.map((b, i) => <Text key={i} style={styles.miniLabel}>{b.label}</Text>)}</View>
+    </View>
 
     <Text style={styles.section}>Exercise trends</Text>
     {names.length === 0 ? <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>No exercise history yet</Text><Text style={styles.sub}>Log a couple of workouts and this section will chart your trend per exercise.</Text></View> : <>
