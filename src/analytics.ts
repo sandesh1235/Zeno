@@ -1,6 +1,6 @@
 import type { ExerciseHistory } from './types/history';
 
-export type Metric = 'weight' | 'reps' | 'volume';
+export type Metric = 'weight' | 'reps' | 'volume' | '1rm';
 export type RangeDays = 30 | 90 | 0; // 0 = all time
 export type ExercisePoint = { date: number; value: number };
 
@@ -43,7 +43,8 @@ export function exerciseSeries(history: ExerciseHistory, exerciseName: string, m
       points.push({ date, value: entry.sets.reduce((sum, s) => sum + s.weight * s.reps, 0) });
     } else {
       const best = entry.sets.reduce((a, b) => estimate1RM(b.weight, b.reps) > estimate1RM(a.weight, a.reps) ? b : a);
-      points.push({ date, value: metric === 'weight' ? best.weight : best.reps });
+      const value = metric === 'weight' ? best.weight : metric === 'reps' ? best.reps : estimate1RM(best.weight, best.reps);
+      points.push({ date, value });
     }
   }
   return points.sort((a, b) => a.date - b.date);

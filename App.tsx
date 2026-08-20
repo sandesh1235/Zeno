@@ -263,10 +263,10 @@ function Progress({ state }: { state: SavedState }) {
   const series = useMemo(() => activeExercise ? exerciseSeries(state.history, activeExercise, metric, range) : [], [state.history, activeExercise, metric, range]);
   const points = series.map(p => ({
     x: p.date,
-    y: metric === 'weight' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value,
+    y: metric === 'weight' || metric === '1rm' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value,
     label: new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   }));
-  const metricUnit = metric === 'weight' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
+  const metricUnit = metric === 'weight' || metric === '1rm' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
 
   const [muscleRange, setMuscleRange] = useState<RangeDays>(30);
   const muscleVolumes = useMemo(() => muscleDistribution(state.history, muscleRange), [state.history, muscleRange]);
@@ -294,12 +294,13 @@ function Progress({ state }: { state: SavedState }) {
       </ScrollView>
       <View style={styles.chart}>
         <View style={styles.row}>
-          <View style={styles.segmented}>{(['weight', 'reps', 'volume'] as Metric[]).map(m => <Pressable key={m} onPress={() => setMetric(m)} style={[styles.segment, metric === m && styles.segmentOn]}><Text style={[styles.segmentText, metric === m && styles.segmentTextOn]}>{m === 'weight' ? 'Weight' : m === 'reps' ? 'Reps' : 'Volume'}</Text></Pressable>)}</View>
+          <View style={styles.segmented}>{(['weight', 'reps', 'volume', '1rm'] as Metric[]).map(m => <Pressable key={m} onPress={() => setMetric(m)} style={[styles.segment, metric === m && styles.segmentOn]}><Text style={[styles.segmentText, metric === m && styles.segmentTextOn]}>{m === 'weight' ? 'Weight' : m === 'reps' ? 'Reps' : m === 'volume' ? 'Volume' : '1RM'}</Text></Pressable>)}</View>
         </View>
         <View style={styles.row}>
           <View style={styles.segmented}>{([30, 90, 0] as RangeDays[]).map(r => <Pressable key={r} onPress={() => setRange(r)} style={[styles.segment, range === r && styles.segmentOn]}><Text style={[styles.segmentText, range === r && styles.segmentTextOn]}>{r === 0 ? 'All' : `${r}d`}</Text></Pressable>)}</View>
         </View>
         <LineChart points={points} width={chartWidth} height={140} color={C.lime} gridColor={C.panel2} mutedColor={C.muted} formatY={v => `${v.toFixed(0)} ${metricUnit}`} emptyLabel="No sessions in this range" />
+        {metric === '1rm' && <Text style={styles.miniLabel}>Estimated via Epley formula: weight × (1 + reps ÷ 30). Not a substitute for an actual tested max.</Text>}
       </View>
     </>}
 
