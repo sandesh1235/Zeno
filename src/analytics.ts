@@ -13,6 +13,23 @@ export function exerciseNames(history: ExerciseHistory): string[] {
   return Object.keys(history).sort((a, b) => a.localeCompare(b));
 }
 
+export type MuscleVolume = { muscle: string; volume: number };
+
+// Aggregates total volume per muscle group across all exercises. Entries logged before this field
+// existed won't have `muscle` at runtime despite the type — fall back to 'Other' rather than crash.
+export function muscleDistribution(history: ExerciseHistory, rangeDays: RangeDays): MuscleVolume[] {
+  const cutoff = rangeDays ? Date.now() - rangeDays * DAY_MS : 0;
+  const totals = new Map<string, number>();
+  Object.values(history).forEach(entries => entries.forEach(entry => {
+    const date = new Date(entry.date).getTime();
+    if (date < cutoff) return;
+    const muscle = entry.muscle || 'Other';
+    const volume = entry.sets.reduce((sum, s) => sum + s.weight * s.reps, 0);
+    totals.set(muscle, (totals.get(muscle) || 0) + volume);
+  }));
+  return Array.from(totals.entries()).map(([muscle, volume]) => ({ muscle, volume })).sort((a, b) => b.volume - a.volume);
+}
+
 // One point per session entry that included this exercise.
 // weight/reps use that entry's best set (highest estimated 1RM); volume sums all sets in that entry.
 export function exerciseSeries(history: ExerciseHistory, exerciseName: string, metric: Metric, rangeDays: RangeDays): ExercisePoint[] {
