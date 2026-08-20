@@ -72,5 +72,15 @@ export const styles = StyleSheet.create({ screen:{flex:1,backgroundColor:C.bg}, 
   scheduleOptions:{backgroundColor:C.panel,borderRadius:16,padding:14,gap:6,marginTop:6},
   muscleRow:{flexDirection:'row',alignItems:'center',gap:10},
   muscleRowLabel:{width:76,color:C.text,fontWeight:'700',fontSize:13},
-  muscleRowValue:{width:56,textAlign:'right',color:C.muted,fontSize:11,fontWeight:'700'}
+  muscleRowValue:{width:56,textAlign:'right',color:C.muted,fontSize:11,fontWeight:'700'},
+  streakWeek:{flexDirection:'row',marginBottom:6},
+  streakGrid:{flexDirection:'row',flexWrap:'wrap'},
+  streakCell:{width:'14.2857%',alignItems:'center',paddingVertical:4},
+  streakCellOutside:{opacity:0.3},
+  streakDot:{width:32,height:32,borderRadius:16,alignItems:'center',justifyContent:'center'},
+  streakDotActive:{backgroundColor:C.lime},
+  streakDotToday:{borderWidth:1,borderColor:C.lime},
+  streakDay:{color:C.text,fontSize:12},
+  streakDayActive:{color:C.bg,fontWeight:'700'},
+  streakLegendDot:{width:10,height:10,borderRadius:5,backgroundColor:C.panel2}
 });
