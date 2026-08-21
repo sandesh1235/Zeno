@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Dimensions, Image, LayoutAnimation, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
+import { Alert, Dimensions, Image, LayoutAnimation, Linking, Modal, Platform, Pressable, SafeAreaView, ScrollView, StatusBar, Switch, Text, TextInput, View } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
@@ -36,6 +36,19 @@ export default function App() {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => sub.subscription.unsubscribe();
+  }, []);
+  useEffect(() => {
+    if (!supabase) return;
+    const applySessionFromUrl = (url: string) => {
+      const fragment = url.split('#')[1];
+      if (!fragment) return;
+      const params = new URLSearchParams(fragment);
+      const access_token = params.get('access_token'); const refresh_token = params.get('refresh_token');
+      if (access_token && refresh_token) supabase.auth.setSession({ access_token, refresh_token });
+    };
+    Linking.getInitialURL().then(url => { if (url) applySessionFromUrl(url); });
+    const sub = Linking.addEventListener('url', ({ url }) => applySessionFromUrl(url));
+    return () => sub.remove();
   }, []);
   const signOut = async () => { if (supabase) await supabase.auth.signOut(); };
   useEffect(() => { loadState().then(v => { setState(v); setReady(true); }); }, []);

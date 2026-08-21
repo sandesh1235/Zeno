@@ -1,7 +1,28 @@
 {
   "expo": {
-    "name": "ZenoFit", "slug": "zenofit", "version": "1.0.0", "orientation": "portrait",
-    "userInterfaceStyle": "dark", "plugins": ["expo-notifications"],
-    "ios": { "supportsTablet": true }, "android": { "adaptiveIcon": { "backgroundColor": "#101514" } }
+    "name": "ZenoFit",
+    "slug": "zenofit",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "zenofit",
+    "userInterfaceStyle": "dark",
+    "plugins": [
+      "expo-notifications"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.sandesh777.zenofit",
+      "adaptiveIcon": {
+        "backgroundColor": "#101514"
+      }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cad35b27-d149-4937-9cd1-34f383452bd1"
+      }
+    },
+    "owner": "sandesh777"
   }
 }

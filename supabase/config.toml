@@ -11,3 +11,39 @@
 #
 # Fill in project_id with your project's Reference ID: Project Settings > General.
 project_id = "vhxlrgqxzncenyvlvebp"
+
+# Pushed to the live project via `supabase config push`.
+# IMPORTANT: config push replaces every auth setting below with what's declared
+# here (unlisted settings reset to CLI defaults), so every field the live project
+# had customized must stay listed even though only site_url/additional_redirect_urls
+# are actually being changed.
+[auth]
+enabled = true
+# Used as the default post-auth redirect (email links, etc.) when no explicit
+# redirectTo is passed. The app's own scheme, since this is a mobile app with no web host.
+site_url = "zenofit://"
+# Deep-link targets auth is permitted to redirect to after email confirmation,
+# password reset, etc. "**" matches any path/query/fragment under the scheme.
+additional_redirect_urls = ["zenofit://", "zenofit://**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+
+[auth.mfa]
+max_enrolled_factors = 10
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[auth.mfa.phone]
+enroll_enabled = false
+verify_enabled = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1m0s"
+otp_length = 8
+otp_expiry = 3600
