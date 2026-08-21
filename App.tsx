@@ -17,6 +17,7 @@ import type { WeeklySchedule } from './src/types/schedule';
 import { parseScheduleCsv, SAMPLE_CSV } from './src/lib/csvImport';
 import { getVolumeBuckets, isRoutineCompletedToday, type VolumeGranularity } from './src/lib/workoutHistory';
 import { getPersonalRecords } from './src/lib/prs';
+import { getPeriodComparison, percentageChange, type ComparisonGranularity } from './src/lib/weeklyComparison';
 import { exerciseNames, exerciseSeries, muscleDistribution, type Metric, type RangeDays } from './src/analytics';
 import { LineChart } from './src/charts';
 import { StreakCalendar } from './src/components/StreakCalendar';
@@ -117,6 +118,10 @@ function Progress({ state }: { state: SavedState }) {
   const points = series.map(p => ({ x: p.date, y: metric === 'weight' || metric === '1rm' ? (state.profile.unit === 'kg' ? p.value : p.value * 2.20462) : p.value, label: new Date(p.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }));
   const metricUnit = metric === 'weight' || metric === '1rm' ? state.profile.unit : metric === 'volume' ? `${state.profile.unit}·reps` : 'reps';
   const [muscleRange, setMuscleRange] = useState<RangeDays>(30); const muscleVolumes = useMemo(() => muscleDistribution(state.history, muscleRange), [state.history, muscleRange]); const muscleTotal = muscleVolumes.reduce((sum, m) => sum + m.volume, 0) || 1;
+  const [comparisonGranularity, setComparisonGranularity] = useState<ComparisonGranularity>('week');
+  const comparison = useMemo(() => getPeriodComparison(state.history, comparisonGranularity), [state.history, comparisonGranularity]);
+  const changeColor = (pct: number | null) => pct === null || pct === 0 ? C.muted : pct > 0 ? C.lime : C.danger;
+  const changeLabel = (pct: number | null) => pct === null ? 'new' : `${pct > 0 ? '+' : ''}${pct.toFixed(0)}%`;
   return <ScrollView contentContainerStyle={styles.content}>
     <Text style={styles.eyebrow}>YOUR RESULTS</Text><Text style={styles.title}>Progress</Text>
     <View style={styles.stats}><Stat value={String(state.completed)} label="Sessions" /><Stat value={`${Math.round(state.volume).toLocaleString()}`} label="Volume (kg)" /><Stat value={String(prs.length)} label="PRs" /></View>
@@ -124,6 +129,20 @@ function Progress({ state }: { state: SavedState }) {
     {entries.length ? entries.map(([name, kg]) => <View style={styles.record} key={name}><View><Text style={styles.routineName}>{name}</Text><Text style={styles.sub}>Best lifted weight</Text></View><Text style={styles.recordValue}>{showWeight(kg, state.profile.unit)}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>↗</Text><Text style={styles.routineName}>Your progress starts here</Text><Text style={styles.sub}>Complete a workout to see your strength trends and personal records.</Text></View>}
     <Text style={styles.section}>Recent PRs</Text>
     {prs.length ? prs.slice(0, 12).map((pr, index) => <View style={styles.record} key={`${pr.exercise}-${pr.type}-${pr.date}-${index}`}><View style={styles.flex1}><Text style={styles.routineName}>{pr.exercise}</Text><Text style={styles.sub}>{pr.type === 'weight' ? 'Weight PR' : 'Estimated 1RM PR'} · {new Date(pr.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</Text></View><Text style={styles.recordValue}>{showWeight(pr.value, state.profile.unit)}{pr.type === '1rm' ? ' 1RM' : ''}</Text></View>) : <View style={styles.empty}><Text style={styles.emptyIcon}>★</Text><Text style={styles.routineName}>No PRs yet</Text><Text style={styles.sub}>Your first set establishes a baseline. Beat it in a later workout to log a PR.</Text></View>}
+
+    <Text style={styles.section}>This {comparisonGranularity} vs last</Text>
+    <View style={styles.chart}>
+      <View style={styles.segmented}>{(['week', 'month'] as ComparisonGranularity[]).map(g => <Pressable key={g} onPress={() => setComparisonGranularity(g)} style={[styles.segment, comparisonGranularity === g && styles.segmentOn]}><Text style={[styles.segmentText, comparisonGranularity === g && styles.segmentTextOn]}>{g === 'week' ? 'Week' : 'Month'}</Text></Pressable>)}</View>
+      {([
+        { label: 'Sessions', current: comparison.current.sessions, previous: comparison.previous.sessions, format: (n: number) => String(n) },
+        { label: 'Volume', current: comparison.current.volume, previous: comparison.previous.volume, format: (n: number) => Math.round(n).toLocaleString() },
+        { label: 'Sets', current: comparison.current.sets, previous: comparison.previous.sets, format: (n: number) => String(n) },
+        { label: 'PRs hit', current: comparison.current.prs, previous: comparison.previous.prs, format: (n: number) => String(n) },
+      ]).map(row => { const pct = percentageChange(row.current, row.previous); return <View style={styles.record} key={row.label}>
+        <View><Text style={styles.routineName}>{row.label}</Text><Text style={styles.sub}>{row.format(row.previous)} last {comparisonGranularity}</Text></View>
+        <View style={styles.comparisonAlign}><Text style={styles.recordValue}>{row.format(row.current)}</Text><Text style={[styles.miniLabel, { color: changeColor(pct) }]}>{changeLabel(pct)}</Text></View>
+      </View>; })}
+    </View>
     <Text style={styles.section}>Workout streak</Text>
     <StreakCalendar history={state.history} />
     <Text style={styles.section}>Training volume</Text>
