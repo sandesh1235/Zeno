@@ -1,0 +1,13 @@
+# Supabase CLI configuration.
+# See: https://supabase.com/docs/guides/local-development/cli/config
+#
+# NOT required for the GitHub integration's "Deploy to production" toggle to work —
+# that reads everything under supabase/migrations/ directly once the repo + branch
+# are linked in the Supabase dashboard (already done for this project).
+#
+# This file matters if you want to use the Supabase CLI locally (`supabase link`,
+# `supabase db push`, `supabase start`, etc.) or add Edge Functions / storage buckets
+# later, since the GitHub integration only applies those if they're declared here.
+#
+# Fill in project_id with your project's Reference ID: Project Settings > General.
+project_id = ""
