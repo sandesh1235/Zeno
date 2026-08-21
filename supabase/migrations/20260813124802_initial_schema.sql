@@ -10,3 +10,4 @@ create policy "routine exercise read" on public.routine_exercises for select usi
 create policy "routine exercise write" on public.routine_exercises for all using (exists (select 1 from public.routines r where r.id = routine_id and r.owner_id = auth.uid())) with check (exists (select 1 from public.routines r where r.id = routine_id and r.owner_id = auth.uid()));
 create policy "own workouts" on public.workouts for all using (owner_id = auth.uid()) with check (owner_id = auth.uid());
 create policy "own workout sets" on public.workout_sets for all using (exists (select 1 from public.workouts w where w.id = workout_id and w.owner_id = auth.uid())) with check (exists (select 1 from public.workouts w where w.id = workout_id and w.owner_id = auth.uid()));
+
